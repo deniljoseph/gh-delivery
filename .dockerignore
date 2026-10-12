@@ -1,0 +1,17 @@
+__pycache__
+*.pyc
+*.db
+.env
+.git
+.gitignore
+Backups
+Delivery Notes Archive
+venv
+.venv
+*.md
+START.bat
+Procfile
+railway.json
+nixpacks.toml
+runtime.txt
+requirements_local.txt

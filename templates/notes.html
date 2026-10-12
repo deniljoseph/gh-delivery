@@ -1,0 +1,191 @@
+{% extends 'base.html' %}{% block title %}Dispatch Board{% endblock %}{% block pt %}{{ 'Dispatch Board – by driver' if view=='driver' else 'Deliveries & Pickups – table' }}{% endblock %}
+
+{% macro actions(n) %}
+  <a href="{{ url_for('view_note',nid=n.id) }}" class="btn btn-sm bg" title="View"><i class="bi bi-eye"></i></a>
+  <a href="{{ url_for('download_pdf',nid=n.id) }}" class="btn btn-sm btn-outline-danger" title="Download PDF"><i class="bi bi-file-earmark-pdf"></i></a>
+  {% if n.delivery_status=='pending' and can('dn_deliver') %}<button type="button" class="btn btn-sm ba" title="Mark as delivered" onclick='markDel({{ n.id }}, {{ n.dn_number|tojson }})'><i class="bi bi-check2-circle"></i></button>{% endif %}
+  {% if is_pickup(n) and n.pickup_map_link %}<a href="{{ n.pickup_map_link }}" target="_blank" rel="noopener" class="btn btn-sm bg" title="Pickup location"><i class="bi bi-box-arrow-in-down"></i></a>{% endif %}
+  {% if n.map_link %}<a href="{{ n.map_link }}" target="_blank" rel="noopener" class="btn btn-sm bg" title="{{ 'Drop-off location' if is_pickup(n) else 'Open Google Map location' }}"><i class="bi bi-geo-alt"></i></a>{% endif %}
+  {% if can('dn_edit') %}<a href="{{ url_for('edit_note',nid=n.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="bi bi-pencil"></i></a>{% endif %}
+  {% if can('dn_create') %}<a href="{{ url_for('duplicate_note',nid=n.id) }}" class="btn btn-sm btn-outline-secondary" title="Duplicate"><i class="bi bi-copy"></i></a>{% endif %}
+  {% if can('dn_delete') %}<form method="POST" action="{{ url_for('delete_note',nid=n.id) }}" onsubmit="return confirm('Delete {{ n.dn_number }}?')" class="d-inline"><button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button></form>{% endif %}
+{% endmacro %}
+
+{% macro delivered_info(n) %}{% if n.delivery_status=='delivered' %}<span class="badge-on">Delivered</span>
+  <div style="font-size:12px;font-weight:600;margin-top:2px;"><i class="bi bi-calendar-check me-1"></i>{{ (n.delivered_at or n.delivered_on)|fmt_dt }}</div>
+  <div style="font-size:11px;color:var(--muted);">{% if n.received_by %}Received by {{ n.received_by }}{% endif %}{% if n.delivered_by %}{% if n.received_by %} · {% endif %}{{ n.delivered_by }}{% endif %}</div>
+{% elif n.delivery_status=='cancelled' %}<span class="badge-off">Cancelled</span>
+{% else %}<span class="badge-pending">Pending</span>{% if is_pickup(n) and n.picked_up_at %}<div style="font-size:11px;color:var(--muted);">Collected {{ n.picked_up_at|fmt_dt }}</div>{% endif %}{% endif %}{% endmacro %}
+
+{% block content %}
+{% set can_drag = can('dn_edit') and st in ('', 'pending') %}
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+  <form class="d-flex gap-2 flex-wrap align-items-center" method="GET">
+    <input type="hidden" name="view" value="{{ view }}">
+    <select name="co" class="form-select form-select-sm" style="width:120px;" onchange="this.form.submit()">
+      <option value="">All Companies</option>
+      {% for co in companies %}<option value="{{ co.id }}" {{ 'selected' if co_id==co.id|string }}>{{ co.code }}</option>{% endfor %}
+    </select>
+    <select name="st" class="form-select form-select-sm" style="width:125px;" onchange="this.form.submit()">
+      <option value="">All Status</option>
+      <option value="pending" {{ 'selected' if st=='pending' }}>Pending</option>
+      <option value="delivered" {{ 'selected' if st=='delivered' }}>Delivered</option>
+      <option value="cancelled" {{ 'selected' if st=='cancelled' }}>Cancelled</option>
+    </select>
+    <select name="tp" class="form-select form-select-sm" style="width:120px;" onchange="this.form.submit()">
+      <option value="">Deliveries + Pickups</option>
+      <option value="delivery" {{ 'selected' if tp=='delivery' }}>Deliveries</option>
+      <option value="pickup" {{ 'selected' if tp=='pickup' }}>Pickups</option>
+    </select>
+    <input type="date" name="from" class="form-control form-control-sm" value="{{ d_from }}" style="width:138px;" title="From date" onchange="this.form.submit()">
+    <input type="date" name="to" class="form-control form-control-sm" value="{{ d_to }}" style="width:138px;" title="To date" onchange="this.form.submit()">
+    <input type="text" name="q" class="form-control form-control-sm" placeholder="Search no., project, client, driver…" value="{{ q }}" style="width:220px;">
+    <button class="btn btn-sm bg">Search</button>
+    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('notes', view=view, st=st, tp=tp, co=co_id, q=q, **{'from':today,'to':today}) }}">Today</a>
+    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('notes', view=view, st=st, tp=tp, co=co_id, q=q, **{'from':tomorrow,'to':tomorrow}) }}">Tomorrow</a>
+    {% if q or co_id or tp or d_from or d_to or (view=='driver' and st!='pending') or (view=='list' and st) %}<a href="{{ url_for('notes', view=view) }}" class="btn btn-sm btn-outline-secondary">Clear</a>{% endif %}
+  </form>
+  <div class="d-flex gap-2 flex-wrap align-items-center">
+    <div class="btn-group view-toggle">
+      <a href="{{ url_for('notes', view='driver', st=st, tp=tp, co=co_id, q=q, **{'from':d_from,'to':d_to}) }}" class="btn btn-sm btn-outline-secondary {{ 'on' if view=='driver' }}"><i class="bi bi-people me-1"></i>By driver</a>
+      <a href="{{ url_for('notes', view='list', st=st, tp=tp, co=co_id, q=q, **{'from':d_from,'to':d_to}) }}" class="btn btn-sm btn-outline-secondary {{ 'on' if view=='list' }}"><i class="bi bi-table me-1"></i>Table</a>
+    </div>
+    {% if can('dn_create') %}
+    <div class="dropdown"><button class="btn btn-sm ba dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-plus me-1"></i>New</button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        {% for co in companies %}<li><a class="dropdown-item" href="{{ url_for('new_note') }}?co={{ co.id }}"><i class="bi bi-truck me-2"></i>{{ co.code }} Delivery</a></li>{% endfor %}
+        <li><hr class="dropdown-divider"></li>
+        {% for co in companies %}<li><a class="dropdown-item" href="{{ url_for('new_note') }}?co={{ co.id }}&type=pickup"><i class="bi bi-box-arrow-in-down me-2"></i>{{ co.code }} Pickup</a></li>{% endfor %}
+      </ul></div>
+    {% endif %}
+  </div>
+</div>
+
+{% if view=='driver' %}
+<div class="mb-3" style="font-size:12.5px;color:var(--muted);">
+  {% if can_drag %}<i class="bi bi-hand-index-thumb me-1"></i><strong>Set the day's priority:</strong> drag a job by its <i class="bi bi-grip-vertical"></i> handle (or use ▲▼) to reorder it. Drop it into another driver's list to reassign it. The driver sees the jobs in exactly this order. Changes save instantly.
+  {% elif can('dn_edit') %}<i class="bi bi-info-circle me-1"></i>Reordering is available while the status filter is <strong>All</strong> or <strong>Pending</strong>.{% endif %}
+</div>
+{% for g in groups %}
+<div class="pc drv-sec" data-driver="{{ g.driver_id or '' }}">
+  <div class="ph"><i class="bi bi-{{ 'person-badge' if g.driver_id else 'question-circle' }}"></i><span style="font-size:15px;">{{ g.name }}</span>
+    {% if g.vehicle %}<span class="drv-meta"><i class="bi bi-truck me-1"></i>{{ g.vehicle }}</span>{% endif %}
+    {% if g.contact %}<span class="drv-meta"><i class="bi bi-telephone me-1"></i>{{ g.contact }}</span>{% endif %}
+    <span class="ms-auto d-flex gap-2"><span class="badge bg-secondary cnt" style="font-size:11px;">{{ g.pending }} pending</span>{% if g.pickups %}<span class="badge bg-secondary" style="font-size:11px;">{{ g.pickups }} pickup{{ '' if g.pickups==1 else 's' }}</span>{% endif %}</span></div>
+  {% for cell in g.cells %}
+    {% if can_drag or cell.pending or cell.done %}
+    <div class="day-hd"><i class="bi bi-calendar3"></i>{{ fmt_date(cell.date) }}{% if cell.date==today %}<span class="badge-on">Today</span>{% elif cell.date==tomorrow %}<span class="badge-pending">Tomorrow</span>{% elif cell.date<today and cell.pending %}<span class="badge-off" style="text-decoration:none;">Overdue</span>{% endif %}</div>
+    {% if can_drag %}
+    <div class="dz {{ 'is-empty' if not cell.pending }}" data-driver="{{ g.driver_id or '' }}" data-date="{{ cell.date }}" data-empty="{{ 'Nothing here – drag a job in to assign it to ' ~ g.name if g.driver_id else 'No unassigned jobs' }}">
+    {% else %}<div class="dz" style="padding-bottom:0;">{% endif %}
+      {% for n in cell.pending %}
+      <div class="nrow {{ 'pu' if is_pickup(n) }}" data-id="{{ n.id }}">
+        {% if can_drag %}<span class="grip bi bi-grip-vertical" title="Drag to reorder / reassign"></span>{% endif %}
+        <span class="pri">{{ loop.index }}</span>
+        <div class="body">
+          <div class="t1"><a href="{{ url_for('view_note',nid=n.id) }}" class="text-decoration-none">{{ n.dn_number }}</a>{% if is_pickup(n) %}<span class="badge-pu">PICKUP</span>{% endif %}<span class="co-pill">{{ n.co_code }}</span>{% if is_pickup(n) and n.picked_up_at %}<span class="badge-pending">Collected {{ n.picked_up_at[11:16] }}</span>{% endif %}</div>
+          <div class="t2" style="color:var(--txt);font-weight:600;">{{ n.project_name or n.client_name or '—' }}{% if n.project_name and n.client_name %}<span style="font-weight:400;color:var(--muted);"> · {{ n.client_name }}</span>{% endif %}</div>
+          <div class="t2">{% if is_pickup(n) %}<i class="bi bi-box-arrow-in-down"></i> {{ n.pickup_name or '' }} {{ (n.pickup_address or '').replace('\n',', ')[:60] }} &nbsp;<i class="bi bi-arrow-right"></i> {{ ((n.shipping_address or n.invoice_address) or '').replace('\n',', ')[:60] }}{% else %}<i class="bi bi-geo-alt"></i> {{ ((n.shipping_address or n.invoice_address) or '—').replace('\n',', ')[:90] }}{% endif %} · {{ n.item_count }} item{{ '' if n.item_count==1 else 's' }}</div>
+        </div>
+        {% if can_drag %}<div class="mv"><button type="button" onclick="mv(this,-1)" title="Move up">▲</button><button type="button" onclick="mv(this,1)" title="Move down">▼</button></div>{% endif %}
+        <div class="acts">{{ actions(n) }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% if cell.done %}<div style="padding:0 10px 6px;">
+      {% for n in cell.done %}
+      <div class="nrow done {{ 'pu' if is_pickup(n) }}"><span class="pri"><i class="bi bi-check2"></i></span>
+        <div class="body"><div class="t1"><a href="{{ url_for('view_note',nid=n.id) }}" class="text-decoration-none">{{ n.dn_number }}</a>{% if is_pickup(n) %}<span class="badge-pu">PICKUP</span>{% endif %}<span class="co-pill">{{ n.co_code }}</span></div>
+          <div class="t2" style="color:var(--txt);">{{ n.project_name or n.client_name or '—' }}</div></div>
+        <div style="min-width:170px;">{{ delivered_info(n) }}</div>
+        <div class="acts">{{ actions(n) }}</div></div>
+      {% endfor %}</div>{% endif %}
+    {% endif %}
+  {% endfor %}
+  {% if not g.cells %}<div class="text-center text-muted py-3" style="font-size:12.5px;">No jobs match the current filters.</div>{% endif %}
+</div>
+{% else %}
+<div class="pc"><div class="text-center text-muted py-5">No delivery notes or pickups found.</div></div>
+{% endfor %}
+
+{% else %}
+<div class="pc">
+  <div class="ph"><i class="bi bi-truck"></i>Deliveries &amp; Pickups <span class="ms-auto badge bg-secondary" style="font-size:11px;">{{ notes|length }}</span></div>
+  <div class="table-responsive">
+    <table class="table gt mb-0">
+      <thead><tr><th>Delivery Note</th><th>Co.</th><th>Date</th><th>Project / Client</th><th>Ref.</th><th>Items</th><th>Driver / Vehicle</th><th>Status / Delivered</th><th>Actions</th></tr></thead>
+      <tbody>
+      {% for n in notes %}
+      <tr>
+        <td><a href="{{ url_for('view_note',nid=n.id) }}" class="fw-bold text-decoration-none">{{ n.dn_number }}</a>{% if is_pickup(n) %}<div><span class="badge-pu">PICKUP</span></div>{% endif %}</td>
+        <td><span class="co-pill">{{ n.co_code }}</span></td>
+        <td style="font-size:12px;color:var(--muted);">{{ fmt_date(n.dn_date) }}</td>
+        <td><div style="font-size:13px;font-weight:600;">{{ n.project_name or '—' }}</div><div style="font-size:11.5px;color:var(--muted);">{{ n.client_name or '' }}</div></td>
+        <td style="font-size:11.5px;">{% if n.invoice_no %}Inv: {{ n.invoice_no }}<br>{% endif %}{% if n.order_no %}Ord: {{ n.order_no }}{% endif %}{% if not n.invoice_no and not n.order_no %}—{% endif %}</td>
+        <td>{{ n.item_count }}</td>
+        <td style="font-size:12px;">{{ n.driver_name or '—' }}<div style="color:var(--muted);">{{ n.vehicle_number or '' }}</div></td>
+        <td>{{ delivered_info(n) }}</td>
+        <td><div class="d-flex gap-1 flex-nowrap">{{ actions(n) }}</div></td>
+      </tr>
+      {% else %}<tr><td colspan="9" class="text-center text-muted py-5">No delivery notes found.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="saving-pill" id="savePill"></div>
+
+<div class="modal fade" id="delMod" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <form method="POST" id="delForm">
+    <input type="hidden" name="delivery_status" value="delivered"><input type="hidden" name="next" value="list">
+    <div class="modal-header modal-hd"><h6 class="modal-title"><i class="bi bi-check2-circle me-1"></i>Mark as delivered – <span id="delNo"></span></h6><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="row g-2 mb-3"><div class="col-7"><label class="form-label">Delivered on</label><input type="date" name="delivered_on" class="form-control" value="{{ today }}"></div>
+        <div class="col-5"><label class="form-label">Time</label><input type="time" name="delivered_time" class="form-control" value="{{ now_time }}"></div></div>
+      <div class="mb-3"><label class="form-label">Received by</label><input type="text" name="received_by" class="form-control" placeholder="Name of the person who signed / received"></div>
+      <div class="mb-1"><label class="form-label">Remarks <small class="text-muted fw-normal">(optional)</small></label><input type="text" name="status_remarks" class="form-control"></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn ba"><i class="bi bi-check2 me-1"></i>Mark delivered</button></div>
+  </form>
+</div></div></div>
+{% endblock %}
+
+{% block xs %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+function markDel(id,no){document.getElementById('delForm').action='/notes/'+id+'/status';document.getElementById('delNo').textContent=no;new bootstrap.Modal(document.getElementById('delMod')).show();}
+(function(){
+  var zones=[].slice.call(document.querySelectorAll('.dz[data-date]'));
+  if(!zones.length) return;
+  var pill=document.getElementById('savePill'), hide;
+  function say(t){pill.textContent=t;pill.style.display='block';clearTimeout(hide);hide=setTimeout(function(){pill.style.display='none';},1800);}
+  function rows(z){return [].slice.call(z.children).filter(function(c){return c.classList.contains('nrow');});}
+  function renum(z){
+    rows(z).forEach(function(r,i){r.querySelector('.pri').textContent=i+1;});
+    z.classList.toggle('is-empty',!rows(z).length);
+    var sec=z.closest('.drv-sec'); if(sec){var n=sec.querySelectorAll('.dz .nrow:not(.done)').length; var c=sec.querySelector('.cnt'); if(c) c.textContent=n+' pending';}
+  }
+  function payload(z){return {driver_id:z.dataset.driver||null, ids:rows(z).map(function(r){return +r.dataset.id;})};}
+  function save(list){
+    list.forEach(renum); say('Saving…');
+    fetch('/notes/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lists:list.map(payload)})})
+      .then(function(r){if(r.redirected||!r.ok) throw new Error('x'); return r.json();})
+      .then(function(){say('✓ Priority saved');})
+      .catch(function(){alert('Could not save the new order. The page will reload.');location.reload();});
+  }
+  zones.forEach(function(z){
+    renum(z);
+    Sortable.create(z,{group:{name:'day-'+z.dataset.date},handle:'.grip',animation:150,draggable:'.nrow',ghostClass:'sortable-ghost',
+      onEnd:function(e){ if(e.from===e.to && e.oldIndex===e.newIndex) return; save(e.from===e.to?[e.to]:[e.from,e.to]); }});
+  });
+  window.mv=function(btn,dir){
+    var row=btn.closest('.nrow'), z=row.parentNode;
+    if(dir<0 && row.previousElementSibling && row.previousElementSibling.classList.contains('nrow')) z.insertBefore(row,row.previousElementSibling);
+    else if(dir>0 && row.nextElementSibling && row.nextElementSibling.classList.contains('nrow')) z.insertBefore(row.nextElementSibling,row);
+    else return;
+    save([z]);
+  };
+})();
+</script>
+{% endblock %}

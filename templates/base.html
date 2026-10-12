@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light" data-theme="classic" id="HR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#1a1a1a">
+<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+<title>{% block title %}GH Delivery Management{% endblock %}</title>
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.png') }}">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
+{% block xh %}{% endblock %}
+</head>
+<body>
+<nav id="sb">
+  <div class="sb-brand">
+    {% set logo = s.get('logo_path','') if s else '' %}
+    {% if logo %}
+      <img src="{{ url_for('static', filename=logo) }}" class="sb-logo" alt="GH Logo"
+           onerror="this.style.display='none';document.getElementById('sbph').style.display='inline-block'">
+      <span id="sbph" class="sb-logo-ph" style="display:none">GH</span>
+    {% else %}
+      <span class="sb-logo-ph">GH</span>
+    {% endif %}
+    <div class="sb-sub">Delivery Management System</div>
+    <div class="sb-by">Made by <span>Denil Joseph</span></div>
+  </div>
+  <div class="nl">Main</div>
+  {% if session.get('role') == 'admin' %}
+  <a href="{{ url_for('dashboard') }}" class="sl {% if request.endpoint=='dashboard' %}on{% endif %}"><i class="bi bi-speedometer2"></i>Dashboard</a>
+  {% endif %}
+  <a href="{{ url_for('notes') }}" class="sl {% if request.endpoint in ('notes','view_note','edit_note') %}on{% endif %}"><i class="bi bi-kanban"></i>Dispatch Board</a>
+  <a href="{{ url_for('notes') }}?st=pending" class="sl" style="padding-left:36px;font-size:12.5px;"><i class="bi bi-dot"></i>Pending</a>
+  <a href="{{ url_for('notes') }}?st=delivered" class="sl" style="padding-left:36px;font-size:12.5px;"><i class="bi bi-dot"></i>Delivered</a>
+  <a href="{{ url_for('notes') }}?view=list&st=" class="sl" style="padding-left:36px;font-size:12.5px;"><i class="bi bi-dot"></i>All (table)</a>
+  {% if can('dn_create') %}<a href="{{ url_for('new_note') }}" class="sl {% if request.endpoint=='new_note' and request.args.get('type')!='pickup' %}on{% endif %}"><i class="bi bi-plus-circle"></i>New Delivery</a>
+  <a href="{{ url_for('new_note', type='pickup') }}" class="sl {% if request.endpoint=='new_note' and request.args.get('type')=='pickup' %}on{% endif %}"><i class="bi bi-box-arrow-in-down"></i>New Pickup</a>{% endif %}
+  <a href="{{ url_for('drivers') }}" class="sl {% if request.endpoint=='drivers' %}on{% endif %}"><i class="bi bi-person-badge"></i>Drivers</a>
+  <a href="{{ url_for('clients') }}" class="sl {% if 'client' in (request.endpoint or '') %}on{% endif %}"><i class="bi bi-people"></i>Clients</a>
+  {% if session.get('role') == 'admin' %}
+  <a href="{{ url_for('archive') }}" class="sl {% if request.endpoint=='archive' %}on{% endif %}"><i class="bi bi-folder2-open"></i>PDF Archive</a>
+  <div class="nl">Admin</div>
+  <a href="{{ url_for('signatories') }}" class="sl {% if request.endpoint=='signatories' %}on{% endif %}"><i class="bi bi-pen-fill"></i>Signatories &amp; Stamps</a>
+  <a href="{{ url_for('users') }}" class="sl {% if 'user' in (request.endpoint or '') %}on{% endif %}"><i class="bi bi-person-gear"></i>Users</a>
+  <a href="{{ url_for('company_settings') }}" class="sl {% if request.endpoint=='company_settings' or 'compan' in (request.endpoint or '') %}on{% endif %}"><i class="bi bi-gear-fill"></i>Settings</a>
+  <a href="{{ url_for('audit_log') }}" class="sl {% if request.endpoint=='audit_log' %}on{% endif %}"><i class="bi bi-journal-text"></i>Audit Log</a>
+  <a href="{{ url_for('restore_backup') }}" class="sl {% if request.endpoint in ('restore_backup','backup','backup_zip') %}on{% endif %}"><i class="bi bi-cloud-arrow-down-fill"></i>Backup / Restore</a>
+  {% endif %}
+  <div class="nl">Account</div>
+  <a href="{{ url_for('change_password') }}" class="sl {% if request.endpoint=='change_password' %}on{% endif %}"><i class="bi bi-key-fill"></i>Change Password</a>
+  <a href="{{ url_for('logout') }}" class="sl"><i class="bi bi-box-arrow-right"></i>Logout</a>
+</nav>
+<div id="sbBackdrop" onclick="toggleSidebar()"></div>
+<div id="main">
+  <div id="tb">
+    <div class="d-flex align-items-center gap-3">
+      <button class="btn btn-sm btn-outline-secondary" id="sbToggle" onclick="toggleSidebar()" title="Toggle sidebar"><i class="bi bi-list" style="font-size:18px;"></i></button>
+      <h6 class="mb-0 fw-bold" style="font-size:15px;">{% block pt %}{% endblock %}</h6>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <div class="dropdown"><button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown" data-bs-auto-close="outside" title="Theme"><i class="bi bi-palette"></i></button>
+        <div class="dropdown-menu dropdown-menu-end p-0"><div class="theme-grid"></div></div></div>
+      <button class="btn btn-sm btn-outline-secondary" onclick="ghTheme.toggleDark()" title="Light / dark"><i class="bi bi-moon-stars" id="di"></i></button>
+      <div class="d-flex align-items-center gap-2">
+        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:32px;height:32px;background:var(--side);color:#fff;font-size:13px;font-weight:700;flex-shrink:0;">
+          {{ (session.get('full_name','U')[0])|upper }}
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:600;line-height:1.2;">{{ session.get('full_name','User') }}</div>
+          <span class="badge" style="background:var(--acc);color:var(--acc-fg);font-size:9px;padding:2px 6px;">{{ 'Admin' if session.get('role')=='admin' else 'Delivery' }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="ct">
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% if msgs %}{% for cat,msg in msgs %}
+    <div class="alert alert-{{ 'success' if cat=='success' else 'danger' }} alert-dismissible fade show mb-3" style="font-size:13.5px;">
+      <i class="bi bi-{{ 'check-circle-fill' if cat=='success' else 'exclamation-triangle-fill' }} me-2"></i>{{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}{% endif %}{% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+var mq = window.matchMedia('(max-width:768px)');
+var sbOpen = localStorage.getItem('sbOpen') !== 'false';   // desktop preference only
+function applySidebar(){
+  var sb = document.getElementById('sb'), main = document.getElementById('main'), bd = document.getElementById('sbBackdrop');
+  if(mq.matches){                       // mobile: off-canvas drawer, closed by default
+    sb.classList.remove('sb-closed'); main.classList.remove('sb-hidden');
+  } else {                              // desktop: remembered open/closed
+    sb.classList.remove('sb-open'); bd.classList.remove('show');
+    sb.classList.toggle('sb-closed', !sbOpen); main.classList.toggle('sb-hidden', !sbOpen);
+  }
+}
+function toggleSidebar(){
+  var sb = document.getElementById('sb'), bd = document.getElementById('sbBackdrop');
+  if(mq.matches){
+    var o = sb.classList.toggle('sb-open'); bd.classList.toggle('show', o);
+  } else {
+    sbOpen = !sbOpen; localStorage.setItem('sbOpen', sbOpen); applySidebar();
+  }
+}
+document.querySelectorAll('#sb a').forEach(function(a){
+  a.addEventListener('click', function(){ if(mq.matches){ document.getElementById('sb').classList.remove('sb-open'); document.getElementById('sbBackdrop').classList.remove('show'); } });
+});
+(mq.addEventListener ? mq.addEventListener('change', applySidebar) : mq.addListener(applySidebar));
+applySidebar();
+
+</script>
+{% block xs %}{% endblock %}
+</body>
+</html>

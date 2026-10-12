@@ -1,0 +1,57 @@
+{% extends 'base.html' %}{% block title %}Settings{% endblock %}{% block pt %}Settings{% endblock %}
+{% block content %}
+<div id="companies" class="mb-5">
+<form method="POST" action="{{ url_for('bulk_delete_companies') }}" onsubmit="return confirm('Delete selected companies?')" id="bulkForm"></form>
+<div class="pc">
+  <div class="ph"><i class="bi bi-building me-1"></i>Companies
+    <span class="ms-auto d-flex gap-2">
+      <button type="submit" form="bulkForm" class="btn btn-sm btn-outline-danger" style="font-size:11px;"><i class="bi bi-trash me-1"></i>Delete Selected</button>
+      <a href="{{ url_for('new_company') }}" class="btn btn-sm ba" style="font-size:11px;"><i class="bi bi-plus-circle me-1"></i>Add Company</a>
+    </span>
+  </div>
+  <div class="table-responsive">
+    <table class="table gt mb-0">
+      <thead><tr>
+        <th style="width:36px;"><input type="checkbox" id="selAll" onchange="document.querySelectorAll('.coChk').forEach(function(c){c.checked=this.checked;},this)"></th>
+        <th>Code</th><th>Company Name</th><th>TRN</th><th>Address</th><th>Tel</th><th>Prefix</th><th>Status</th><th>Actions</th>
+      </tr></thead>
+      <tbody>
+      {% for co in all_companies %}<tr>
+        <td><input type="checkbox" name="ids[]" value="{{ co.id }}" class="coChk" form="bulkForm"></td>
+        <td><span class="co-pill" style="font-size:12px;font-weight:700;">{{ co.code }}</span></td>
+        <td><strong>{{ co.name }}</strong></td>
+        <td style="font-size:12px;">{{ co.trn or '—' }}</td>
+        <td style="font-size:12px;">{{ (co.address or '')[:35] }}{% if co.address and co.address|length > 35 %}…{% endif %}</td>
+        <td style="font-size:12px;">{{ co.telephone or '—' }}</td>
+        <td style="font-size:12px;">{{ co.dn_prefix or '—' }}</td>
+        <td><span class="{{ 'badge-on' if co.is_active else 'badge-off' }}">{{ 'Active' if co.is_active else 'Inactive' }}</span></td>
+        <td><div class="d-flex gap-1">
+          <a href="{{ url_for('edit_company',cid=co.id) }}" class="btn btn-sm bg"><i class="bi bi-pencil"></i></a>
+          <form method="POST" action="{{ url_for('delete_company',cid=co.id) }}" onsubmit="return confirm('Delete company {{ co.name }}? This cannot be undone.')">
+            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+          </form>
+        </div></td>
+      </tr>{% else %}<tr><td colspan="9" class="text-center text-muted py-4">No companies.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<form method="POST" enctype="multipart/form-data"><div class="row g-4" style="max-width:1000px;">
+<div class="col-lg-5"><div class="pc"><div class="ph"><i class="bi bi-sliders me-1"></i>Delivery Note Defaults</div><div style="padding:18px;">
+  <div class="mb-3"><label class="form-label">Default Company</label><select name="default_company_id" class="form-select">{% for co in companies %}<option value="{{ co.id }}" {{ 'selected' if s.get('default_company_id','1')==co.id|string }}>{{ co.code }} &ndash; {{ co.name[:30] }}</option>{% endfor %}</select></div>
+  <div class="mb-3"><label class="form-label">Default VAT Rate (%)</label><input type="number" name="default_vat_rate" class="form-control" value="{{ s.get('default_vat_rate','5') }}" step="0.01" min="0" max="100"><small class="text-muted">Only used when a note shows prices.</small></div>
+  <div class="mb-3"><label class="form-label">Sidebar Logo</label>
+    {% set logo=s.get('logo_path','') %}{% if logo %}<div class="mb-1"><img src="/static/{{ logo }}" style="height:38px;background:#222;padding:3px;border-radius:4px;"></div>{% endif %}
+    <input type="file" name="logo" class="form-control" accept="image/*"></div>
+</div></div></div>
+<div class="col-lg-7"><div class="pc"><div class="ph"><i class="bi bi-card-text me-1"></i>Default Notes &amp; Terms <small class="ms-2 opacity-75">(printed on every new delivery note, editable per note)</small></div><div style="padding:18px;">
+  <textarea name="default_dn_notes" class="form-control" rows="11" style="font-size:12.5px;">{{ s.get('default_dn_notes','') }}</textarea>
+  <small class="text-muted">One paragraph per line. Text before the first colon is printed in bold.</small>
+</div></div></div>
+<div class="col-12">
+  <button type="submit" class="btn ba px-5"><i class="bi bi-save me-1"></i>Save Settings</button>
+</div>
+</div></form>
+{% endblock %}

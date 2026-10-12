@@ -1,0 +1,62 @@
+{% extends 'base.html' %}{% block title %}Dashboard{% endblock %}{% block pt %}Dashboard{% endblock %}
+{% block content %}
+<div class="row g-3 mb-4">
+{% for co in companies %}{% set c = co_stats.get(co.id, {}) %}
+<div class="col-lg-4"><div class="pc">
+  <div class="ph" style="justify-content:space-between;"><span><i class="bi bi-building me-2"></i>{{ co.name[:28] }}{% if co.name|length > 28 %}…{% endif %}</span><span class="co-pill">{{ co.code }}</span></div>
+  <div style="padding:12px 18px;display:flex;gap:16px;">
+    <div style="flex:1;text-align:center;border-right:1px solid var(--bd);"><div style="font-size:22px;font-weight:700;">{{ c.get('total',0) }}</div><div style="font-size:11px;color:var(--muted);">Deliveries &amp; Pickups</div></div>
+    <div style="flex:1;text-align:center;"><div style="font-size:22px;font-weight:700;color:var(--acc-txt);">{{ c.get('pending',0) }}</div><div style="font-size:11px;color:var(--muted);">Pending</div></div>
+  </div>
+  <div style="padding:0 14px 12px;display:flex;gap:8px;">
+    <a href="{{ url_for('new_note') }}?co={{ co.id }}" class="btn btn-sm ba flex-fill text-center" style="font-size:12px;">New Delivery</a>
+    <a href="{{ url_for('notes') }}?co={{ co.id }}" class="btn btn-sm btn-outline-secondary flex-fill text-center" style="font-size:12px;">View All</a>
+  </div>
+</div></div>{% endfor %}
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3"><div class="sc text-center"><div style="font-size:26px;font-weight:700;">{{ stats.total }}</div><div style="font-size:12px;color:var(--muted);"><i class="bi bi-truck me-1"></i>Total Deliveries &amp; Pickups</div></div></div>
+  <div class="col-6 col-lg-3"><div class="sc text-center"><div style="font-size:26px;font-weight:700;color:var(--acc-txt);">{{ stats.pending }}</div><div style="font-size:12px;color:var(--muted);"><i class="bi bi-hourglass-split me-1"></i>Pending Delivery</div></div></div>
+  <div class="col-6 col-lg-3"><div class="sc text-center"><div style="font-size:26px;font-weight:700;color:var(--acc-txt);">{{ stats.delivered }}</div><div style="font-size:12px;color:var(--muted);"><i class="bi bi-check2-circle me-1"></i>Delivered</div></div></div>
+  <div class="col-6 col-lg-3"><div class="sc text-center"><div style="font-size:26px;font-weight:700;">{{ stats.month }}</div><div style="font-size:12px;color:var(--muted);"><i class="bi bi-calendar-month me-1"></i>This Month</div><div style="font-size:11px;color:var(--muted);">{{ stats.month_delivered }} delivered</div></div></div>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3"><div class="sc text-center"><div style="font-size:24px;font-weight:700;">{{ stats.pending_today }}</div><div style="font-size:12px;color:var(--muted);">Pending Today</div></div></div>
+  <div class="col-6 col-lg-3"><div class="sc text-center"><div style="font-size:24px;font-weight:700;color:var(--acc-txt);">{{ stats.delivered_today }}</div><div style="font-size:12px;color:var(--muted);">Delivered Today</div></div></div>
+  <div class="col-6 col-lg-3"><div class="sc text-center"><div style="font-size:24px;font-weight:700;color:{{ '#c0392b' if stats.overdue else 'inherit' }};">{{ stats.overdue }}</div><div style="font-size:12px;color:var(--muted);">Overdue (3+ days)</div></div></div>
+  <div class="col-6 col-lg-3"><div class="sc text-center"><div style="font-size:24px;font-weight:700;">{{ stats.month_rate }}%</div><div style="font-size:12px;color:var(--muted);">Completed This Month</div>{% if stats.cancelled_month %}<div style="font-size:11px;color:var(--muted);">{{ stats.cancelled_month }} cancelled</div>{% endif %}</div></div>
+</div>
+<div class="pc mb-4"><div class="ph"><i class="bi bi-person-badge"></i>Driver Statistics <small class="ms-2 opacity-75">{{ month_label }}</small></div>
+<div class="table-responsive"><table class="table gt mb-0"><thead><tr><th>Driver</th><th class="text-center">Pending (all)</th><th class="text-center">Pending this month</th><th class="text-center">Overdue 3+ d</th><th class="text-center">Delivered today</th><th class="text-center">Delivered this month</th><th class="text-center">Delivered total</th></tr></thead><tbody>
+{% for d in driver_stats %}<tr><td><strong>{{ d.drv }}</strong></td>
+  <td class="text-center">{% if d.pending %}<a href="{{ url_for('notes') }}?view=list&st=pending{% if d.drv != 'Unassigned' %}&q={{ d.drv|urlencode }}{% endif %}" class="fw-bold">{{ d.pending }}</a>{% else %}0{% endif %}</td>
+  <td class="text-center">{{ d.pending_month }}</td>
+  <td class="text-center" {% if d.overdue %}style="color:#c0392b;font-weight:700;"{% endif %}>{{ d.overdue }}</td>
+  <td class="text-center">{{ d.delivered_today }}</td><td class="text-center">{{ d.delivered_month }}</td><td class="text-center">{{ d.delivered_total }}</td></tr>
+{% else %}<tr><td colspan="7" class="text-center text-muted py-4">No driver activity yet.</td></tr>{% endfor %}
+</tbody>{% if driver_stats %}<tfoot><tr style="font-weight:700;"><td>Total</td><td class="text-center">{{ driver_tot.pending }}</td><td class="text-center">{{ driver_tot.pending_month }}</td><td class="text-center">{{ driver_tot.overdue }}</td><td class="text-center">{{ driver_tot.delivered_today }}</td><td class="text-center">{{ driver_tot.delivered_month }}</td><td class="text-center">{{ driver_tot.delivered_total }}</td></tr></tfoot>{% endif %}
+</table></div></div>
+{% if monthly %}<div class="pc mb-4"><div class="ph"><i class="bi bi-bar-chart"></i>Last 6 Months <small class="ms-2 opacity-75">by job date</small></div>
+<div class="table-responsive"><table class="table gt mb-0"><thead><tr><th>Month</th><th class="text-center">Total jobs</th><th class="text-center">Delivered</th><th class="text-center">Still pending</th><th style="min-width:140px;">Completion</th></tr></thead><tbody>
+{% for m in monthly %}{% set pct = (100*m.delivered/m.total)|round|int if m.total else 0 %}<tr><td><strong>{{ m.m }}</strong></td><td class="text-center">{{ m.total }}</td><td class="text-center">{{ m.delivered }}</td><td class="text-center">{{ m.pending }}</td>
+  <td><div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;height:8px;background:var(--soft);border-radius:4px;overflow:hidden;"><div style="width:{{ pct }}%;height:100%;background:var(--acc);"></div></div><span style="font-size:11px;">{{ pct }}%</span></div></td></tr>{% endfor %}
+</tbody></table></div></div>{% endif %}
+{% if old_pending %}
+<div class="pc mb-4"><div class="ph" style="background:var(--side);"><i class="bi bi-exclamation-triangle"></i>Pending for 3+ days <small class="ms-2 opacity-75">follow up on the signed copy</small></div>
+<div class="table-responsive"><table class="table gt mb-0"><thead><tr><th>Delivery Note</th><th>Co.</th><th>Date</th><th>Project / Client</th><th>Driver</th><th></th></tr></thead><tbody>
+{% for n in old_pending %}<tr><td><strong>{{ n.dn_number }}</strong></td><td><span class="co-pill">{{ n.co_code }}</span></td><td style="font-size:12px;">{{ fmt_date(n.dn_date) }}</td><td>{{ n.project_name or n.client_name or '—' }}</td><td style="font-size:12px;">{{ n.driver_name or '—' }}</td><td><a href="{{ url_for('view_note',nid=n.id) }}" class="btn btn-sm bg"><i class="bi bi-eye"></i></a></td></tr>{% endfor %}
+</tbody></table></div></div>
+{% endif %}
+<div class="row g-3">
+  <div class="col-lg-8"><div class="pc">
+    <div class="ph"><i class="bi bi-clock-history"></i>Recent Deliveries &amp; Pickups<a href="{{ url_for('new_note') }}" class="btn btn-sm ba ms-auto" style="font-size:12px;"><i class="bi bi-plus me-1"></i>New</a></div>
+    <div class="table-responsive"><table class="table gt mb-0"><thead><tr><th>Delivery Note</th><th>Co.</th><th>Project / Client</th><th>Date</th><th>Status / Delivered</th><th></th></tr></thead><tbody>
+    {% for n in recent %}<tr><td><strong>{{ n.dn_number }}</strong>{% if is_pickup(n) %} <span class="badge-pu">PICKUP</span>{% endif %}</td><td><span class="co-pill">{{ n.co_code }}</span></td><td>{{ n.project_name or n.client_name or '—' }}</td><td style="font-size:12px;">{{ fmt_date(n.dn_date) }}</td>
+      <td>{% if n.delivery_status=='delivered' %}<span class="badge-on">Delivered</span><div style="font-size:11px;color:var(--muted);">{{ (n.delivered_at or n.delivered_on)|fmt_dt }}</div>{% elif n.delivery_status=='cancelled' %}<span class="badge-off">Cancelled</span>{% else %}<span class="badge-pending">Pending</span>{% endif %}</td>
+      <td><a href="{{ url_for('view_note',nid=n.id) }}" class="btn btn-sm bg"><i class="bi bi-eye"></i></a></td></tr>
+    {% else %}<tr><td colspan="6" class="text-center text-muted py-4">No delivery notes yet.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+  <div class="col-lg-4"><div class="pc"><div class="ph"><i class="bi bi-journal-text"></i>Recent Activity</div>
+    <div style="padding:8px 14px;">{% for l in logs %}<div style="font-size:12px;padding:6px 0;border-bottom:1px solid var(--soft);"><strong>{{ l.action }}</strong> {{ l.details or '' }}<div style="color:var(--muted);font-size:11px;">{{ l.username }} · {{ l.created_at|dubai }}</div></div>{% else %}<div class="text-muted py-3" style="font-size:12px;">No activity yet.</div>{% endfor %}</div></div></div>
+</div>
+{% endblock %}

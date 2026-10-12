@@ -1,0 +1,278 @@
+{% extends 'base.html' %}{% block title %}{{ 'Edit' if mode=='edit' else 'New' }} {{ 'Pickup' if ttype=='pickup' else 'Delivery' }}{% endblock %}
+{% block pt %}{{ 'Edit ' + dn_num if mode=='edit' else 'New Delivery / Pickup' }}{% endblock %}
+{% block content %}
+{% set sp = (n.show_prices if n else 0) %}
+<form method="POST" id="dnForm" autocomplete="off">
+<input type="hidden" name="task_type" id="taskType" value="{{ ttype }}">
+<div class="row g-3">
+
+{% if mode=='new' %}
+<div class="col-12"><div class="btn-group w-100" style="max-width:520px;" role="group">
+  <button type="button" class="btn ba py-2" id="tDel" onclick="setType('delivery')"><i class="bi bi-truck me-1"></i>Delivery <small class="opacity-75">– take goods to a customer</small></button>
+  <button type="button" class="btn bg py-2" id="tPu" onclick="setType('pickup')"><i class="bi bi-box-arrow-in-down me-1"></i>Pickup <small class="opacity-75">– collect, then deliver</small></button>
+</div></div>
+{% endif %}
+
+<div class="col-12"><div class="pc"><div class="ph"><i class="bi bi-file-earmark-text me-1"></i><span class="t-dl">Delivery Note Details</span><span class="t-pu">Pickup &amp; Delivery Details</span></div>
+<div style="padding:18px;"><div class="row g-3">
+  <div class="col-md-4"><label class="form-label">Company *</label>
+    <select name="company_id" id="companySel" class="form-select">{% for co in companies %}<option value="{{ co.id }}" {{ 'selected' if co.id==selected_co_id }}>{{ co.code }} – {{ co.name[:40] }}</option>{% endfor %}</select></div>
+  <div class="col-md-4"><label class="form-label"><span class="t-dl">Delivery Note No</span><span class="t-pu">Pickup Note No</span></label>
+    <input type="text" id="dnNum" class="form-control" value="{{ dn_num }}" readonly style="background:var(--soft);font-weight:700;">
+    {% if mode=='new' %}<small class="text-muted">Final number is assigned when you save.</small>{% endif %}</div>
+  <div class="col-md-4"><label class="form-label">Scheduled date *</label><input type="date" name="dn_date" class="form-control" required value="{{ n.dn_date if n else today }}"></div>
+  <div class="col-md-4"><label class="form-label">Invoice No</label><input type="text" name="invoice_no" class="form-control" value="{{ n.invoice_no if n else '' }}"></div>
+  <div class="col-md-4"><label class="form-label">Order No</label><input type="text" name="order_no" class="form-control" value="{{ n.order_no if n else '' }}"></div>
+  <div class="col-md-4"><label class="form-label">Location</label><input type="text" name="location" class="form-control" placeholder="e.g. DUBAI, UAE" value="{{ n.location if n else '' }}"></div>
+  <div class="col-md-8"><label class="form-label">Project name</label><input type="text" name="project_name" class="form-control" placeholder="e.g. ALAYA VILLA (CASA SHAMUZZI)" value="{{ n.project_name if n else '' }}"></div>
+</div></div></div></div>
+
+<div class="col-12 t-pu"><div class="pc"><div class="ph"><i class="bi bi-box-arrow-in-down me-1"></i>1 · Collect from <small class="ms-2 opacity-75">where the driver picks the goods up</small></div>
+<div style="padding:18px;"><div class="row g-3">
+  <div class="col-md-6"><label class="form-label">Name / company <span id="puSaved" class="ms-1" style="font-size:11px;color:var(--acc-txt);"></span></label><input type="text" name="pickup_name" id="puName" list="clientNames" class="form-control" value="{{ n.pickup_name if n and n.pickup_name else '' }}" placeholder="e.g. supplier, warehouse, customer"></div>
+  <div class="col-md-6"><label class="form-label">Contact number</label><input type="text" name="pickup_phone" id="puPhone" class="form-control" value="{{ n.pickup_phone if n and n.pickup_phone else '' }}"></div>
+  <div class="col-12"><label class="form-label">Pickup address</label><textarea name="pickup_address" id="puAddr" rows="3" class="form-control">{{ n.pickup_address if n and n.pickup_address else '' }}</textarea></div>
+  <div class="col-md-9"><label class="form-label">Pickup location (Google Map link)</label><input type="text" name="pickup_map_link" id="puMap" class="form-control" placeholder="https://maps.app.goo.gl/…   or   25.2048,55.2708" value="{{ n.pickup_map_link if n and n.pickup_map_link else '' }}"></div>
+  <div class="col-md-3 d-flex align-items-end"><button type="button" class="btn bg w-100" id="testPuMap"><i class="bi bi-box-arrow-up-right me-1"></i>Test link</button></div>
+</div></div></div></div>
+
+<div class="col-12"><div class="pc"><div class="ph"><i class="bi bi-person-lines-fill me-1"></i><span class="t-dl">Customer &amp; Addresses</span><span class="t-pu">2 · Deliver to <small class="ms-2 opacity-75">where the driver takes it afterwards</small></span></div>
+<div style="padding:18px;"><div class="row g-3">
+  <div class="col-md-4"><label class="form-label">Pick saved client <small class="text-muted fw-normal">(details save automatically)</small> <span id="clientSaved" class="ms-1" style="font-size:11px;color:var(--acc-txt);"></span></label>
+    <select name="client_id" id="clientSel" class="form-select"><option value="">— type manually —</option>
+      {% for c in clients %}<option value="{{ c.id }}" data-name="{{ c.name }}" data-tel="{{ c.telephone or '' }}" data-addr="{{ c.address or '' }}" data-ship="{{ c.shipping_address or '' }}" data-map="{{ c.map_link or '' }}" {{ 'selected' if n and n.client_id==c.id }}>{{ c.name }}{% if c.company_name %} – {{ c.company_name }}{% endif %}</option>{% endfor %}
+    </select></div>
+  <div class="col-md-4"><label class="form-label">Mr/Ms</label><input type="text" name="client_name" id="clientName" list="clientNames" class="form-control" value="{{ n.client_name if n else '' }}"></div>
+  <div class="col-md-4"><label class="form-label">Tel No</label><input type="text" name="client_telephone" id="clientTel" class="form-control" value="{{ n.client_telephone if n else '' }}"></div>
+  <div class="col-md-6 t-dl"><label class="form-label">Invoice address</label><textarea name="invoice_address" id="invAddr" rows="3" class="form-control">{{ n.invoice_address if n else '' }}</textarea></div>
+  <div class="col-md-6 col-pu-wide"><label class="form-label d-flex justify-content-between"><span class="t-dl">Shipping address</span><span class="t-pu">Drop-off address</span> <a href="#" id="sameAddr" class="t-dl" style="font-size:11.5px;color:var(--acc-txt);text-decoration:underline;">same as invoice address</a></label><textarea name="shipping_address" id="shipAddr" rows="3" class="form-control">{{ n.shipping_address if n else '' }}</textarea></div>
+</div></div></div></div>
+
+<div class="col-12"><div class="pc"><div class="ph"><i class="bi bi-geo-alt me-1"></i><span class="t-dl">Location (Google Map link)</span><span class="t-pu">Drop-off location (Google Map link)</span></div>
+<div style="padding:18px;"><div class="row g-2 align-items-end">
+  <div class="col-md-9"><input type="text" name="map_link" id="mapLink" class="form-control" placeholder="https://maps.app.goo.gl/…   or   25.2048,55.2708" value="{{ n.map_link if n and n.map_link else '' }}"></div>
+  <div class="col-md-3"><button type="button" class="btn bg w-100" id="testMap"><i class="bi bi-box-arrow-up-right me-1"></i>Test link</button></div>
+  <div class="col-12"><small class="text-muted">Open the delivery place in Google Maps → <strong>Share</strong> → <strong>Copy link</strong> and paste it here (coordinates also work).
+  The assigned driver sees a <strong>Navigate</strong> button in the driver portal that opens this location.</small></div>
+</div></div></div></div>
+
+<div class="col-12"><div class="pc"><div class="ph"><i class="bi bi-box-seam me-1"></i><span class="t-dl">Description of Goods</span><span class="t-pu">Goods to collect &amp; deliver</span>
+  <span class="ms-auto d-flex gap-2 align-items-center">
+    <div class="form-check form-switch mb-0 text-white t-dl"><input class="form-check-input" type="checkbox" role="switch" name="show_prices" id="showPrices" {{ 'checked' if sp }}><label class="form-check-label" for="showPrices" style="font-size:12px;">Show prices &amp; VAT</label></div>
+    <button type="button" class="btn btn-sm btn-outline-light" style="font-size:11px;" data-bs-toggle="modal" data-bs-target="#pasteMod"><i class="bi bi-clipboard me-1"></i>Paste from Excel</button>
+  </span></div>
+<div style="padding:14px 18px;">
+  <div class="table-responsive"><table class="table gt mb-2" id="itemsTbl">
+    <thead><tr><th style="width:44px;">SL#</th><th>Item name / description</th><th style="width:100px;">Qty</th><th style="width:110px;">Unit</th><th class="pr" style="width:120px;">Amount</th><th class="pr" style="width:120px;">Total</th><th style="width:40px;"></th></tr></thead>
+    <tbody id="itemsBody">
+    {% for it in items %}
+    <tr class="it"><td class="sl text-center"></td>
+      <td><textarea name="item_desc[]" rows="1" class="form-control form-control-sm">{{ it.description }}</textarea></td>
+      <td><input type="number" step="any" min="0" name="item_qty[]" class="form-control form-control-sm qty" value="{{ fmt_qty(it.quantity) }}"></td>
+      <td><input type="text" name="item_unit[]" list="unitList" class="form-control form-control-sm" value="{{ it.unit }}"></td>
+      <td class="pr"><input type="number" step="0.01" min="0" name="item_amount[]" class="form-control form-control-sm amt" value="{{ it.amount if it.amount else '' }}"></td>
+      <td class="pr text-end tot fw-bold">0.00</td>
+      <td><button type="button" class="btn btn-sm btn-outline-danger rm"><i class="bi bi-x"></i></button></td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <button type="button" class="btn btn-sm bg" id="addRow"><i class="bi bi-plus-circle me-1"></i>Add item</button>
+  <datalist id="clientNames">{% for c in clients %}<option value="{{ c.name }}">{% endfor %}</datalist>
+  <datalist id="unitList">{% for u in units %}<option value="{{ u }}">{% endfor %}</datalist>
+  <div class="pr mt-3 t-dl" style="max-width:340px;margin-left:auto;">
+    <div class="d-flex justify-content-between align-items-center mb-1"><span style="font-size:13px;">Total Amount</span><strong id="subT">0.00</strong></div>
+    <div class="d-flex justify-content-between align-items-center mb-1"><span style="font-size:13px;">VAT <input type="number" step="0.01" min="0" max="100" name="vat_rate" id="vatRate" value="{{ n.vat_rate if n else s.get('default_vat_rate','5') }}" class="form-control form-control-sm d-inline-block" style="width:70px;"> %</span><strong id="vatT">0.00</strong></div>
+    <div class="d-flex justify-content-between pt-2" style="border-top:2px solid var(--acc);"><span style="font-size:13px;font-weight:700;">Net payable ({{ s.get('currency','AED') }})</span><strong id="netT">0.00</strong></div>
+  </div>
+</div></div></div>
+
+<div class="col-lg-6"><div class="pc h-100"><div class="ph"><i class="bi bi-truck me-1"></i>Vehicle &amp; Driver</div>
+<div style="padding:18px;"><div class="row g-3">
+  <div class="col-12"><label class="form-label">Assigned driver <small class="text-muted fw-normal">(fills the fields below and shows this delivery in the driver's own portal)</small></label>
+    <select id="driverSel" name="driver_id" class="form-select"><option value="">— none / type manually —</option>
+      {% for d in drivers %}<option value="{{ d.id }}" {{ 'selected' if n and n.driver_id==d.id }} data-name="{{ d.name }}" data-contact="{{ d.contact or '' }}" data-veh="{{ d.vehicle_number or '' }}">{{ d.name }}{% if d.vehicle_number %} – {{ d.vehicle_number }}{% endif %}</option>{% endfor %}
+    </select></div>
+  <div class="col-md-4"><label class="form-label">Vehicle number</label><input type="text" name="vehicle_number" id="vehNo" class="form-control" value="{{ n.vehicle_number if n else '' }}"></div>
+  <div class="col-md-4"><label class="form-label">Driver name</label><input type="text" name="driver_name" id="drvName" class="form-control" value="{{ n.driver_name if n else '' }}"></div>
+  <div class="col-md-4"><label class="form-label">Driver contact</label><input type="text" name="driver_contact" id="drvContact" class="form-control" value="{{ n.driver_contact if n else '' }}"></div>
+  <div class="col-12"><small class="text-muted"><i class="bi bi-magic me-1"></i>A driver you type in here is saved automatically for next time (and can get a portal login on the Drivers page).</small></div>
+</div></div></div></div>
+
+<div class="col-lg-6"><div class="pc h-100"><div class="ph"><i class="bi bi-pen me-1"></i>Signatory &amp; Stamp</div>
+<div style="padding:18px;"><div class="row g-3">
+  <div class="col-md-8"><label class="form-label">Signatory (Thanks &amp; Regards)</label>
+    <select name="signatory_id" class="form-select"><option value="">— none —</option>
+      {% for sg in sigs %}<option value="{{ sg.id }}" {{ 'selected' if (n and n.signatory_id==sg.id) or (not n and def_sig and def_sig.id==sg.id) }}>{{ sg.name }}{% if sg.position %} – {{ sg.position }}{% endif %}</option>{% endfor %}
+    </select></div>
+  <div class="col-md-4 d-flex align-items-end"><div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="include_signature" id="incSig" {{ 'checked' if (not n) or n.include_signature }}><label class="form-check-label" for="incSig">Print signature</label></div></div>
+  <div class="col-md-8"><label class="form-label">Company stamp</label>
+    <select name="stamp_id" id="stampSel" class="form-select"><option value="">— none —</option>
+      {% for st in stamps %}<option value="{{ st.id }}" {{ 'selected' if (n and n.stamp_id==st.id) or (not n and def_stamp and def_stamp.id==st.id) }}>{{ st.name }}</option>{% endfor %}
+    </select></div>
+  <div class="col-md-4 d-flex align-items-end"><div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="include_stamp" id="incStamp" {{ 'checked' if (not n) or n.include_stamp }}><label class="form-check-label" for="incStamp">Print stamp</label></div></div>
+</div></div></div></div>
+
+<div class="col-12"><div class="pc"><div class="ph"><i class="bi bi-card-text me-1"></i>Notes &amp; Terms <small class="ms-2 opacity-75">printed at the bottom of the delivery note</small></div>
+<div style="padding:18px;"><textarea name="notes" rows="7" class="form-control" style="font-size:12.5px;">{{ n.notes if n else s.get('default_dn_notes','') }}</textarea>
+<small class="text-muted">One paragraph per line. Text before the first colon is printed in bold. Defaults can be changed in Settings.</small></div></div></div>
+
+<div class="col-12 d-flex gap-2 mb-4">
+  <button type="submit" class="btn ba px-5"><i class="bi bi-save me-1"></i>{{ 'Save changes' if mode=='edit' else 'Create' }}</button>
+  <a href="{{ url_for('view_note',nid=n.id) if n else url_for('notes') }}" class="btn btn-outline-secondary">Cancel</a>
+</div>
+</div></form>
+
+<div class="modal fade" id="pasteMod" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+  <div class="modal-header modal-hd"><h6 class="modal-title">Paste items from Excel</h6><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <p style="font-size:13px;" class="text-muted">Copy rows from Excel with columns <strong>Item name | Qty | Unit</strong> and paste below. One item per line; Qty and Unit are optional.</p>
+    <textarea id="pasteArea" rows="9" class="form-control" style="font-size:12.5px;font-family:monospace;" placeholder="VANITY MIRROR WITH LED (VILLA 13)&#9;5&#9;SET"></textarea>
+  </div>
+  <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn ba" id="pasteGo">Add to list</button></div>
+</div></div></div>
+{% endblock %}
+
+{% block xh %}<style>
+.t-pu{display:none;} body.is-pu .t-pu{display:revert;} body.is-pu .t-dl{display:none!important;}
+body.is-pu .col-pu-wide{flex:0 0 100%;max-width:100%;}
+body.is-pu .col-12.t-pu,body.is-pu span.t-pu{display:revert;}
+</style>{% endblock %}
+{% block xs %}
+<script>
+function setType(t){
+  document.getElementById('taskType').value=t; document.body.classList.toggle('is-pu',t==='pickup');
+  var a=document.getElementById('tDel'), b=document.getElementById('tPu');
+  if(a&&b){a.className='btn py-2 '+(t==='delivery'?'ba':'bg'); b.className='btn py-2 '+(t==='pickup'?'ba':'bg');}
+  var cs=document.getElementById('companySel'), num=document.getElementById('dnNum');
+  {% if mode=='new' %}if(cs&&num) fetch('/api/next-number?co='+cs.value+'&type='+t).then(function(r){return r.json();}).then(function(d){num.value=d.number;});{% endif %}
+  var sp=document.getElementById('showPrices'); if(sp&&t==='pickup') sp.checked=false;
+  if(window.__togglePrices) window.__togglePrices();
+}
+(function(){
+  var body=document.getElementById('itemsBody'), showP=document.getElementById('showPrices');
+  function fmt(n){return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function rowHtml(d,q,u,a){
+    var tr=document.createElement('tr'); tr.className='it';
+    tr.innerHTML='<td class="sl text-center"></td>'+
+      '<td><textarea name="item_desc[]" rows="1" class="form-control form-control-sm"></textarea></td>'+
+      '<td><input type="number" step="any" min="0" name="item_qty[]" class="form-control form-control-sm qty"></td>'+
+      '<td><input type="text" name="item_unit[]" list="unitList" class="form-control form-control-sm"></td>'+
+      '<td class="pr"><input type="number" step="0.01" min="0" name="item_amount[]" class="form-control form-control-sm amt"></td>'+
+      '<td class="pr text-end tot fw-bold">0.00</td>'+
+      '<td><button type="button" class="btn btn-sm btn-outline-danger rm"><i class="bi bi-x"></i></button></td>';
+    tr.querySelector('textarea').value=d||''; tr.querySelector('.qty').value=(q===undefined||q==='')?1:q;
+    tr.querySelector('[name="item_unit[]"]').value=u||'PCS'; tr.querySelector('.amt').value=a||'';
+    body.appendChild(tr); return tr;
+  }
+  function recalc(){
+    var sub=0, i=1;
+    body.querySelectorAll('tr.it').forEach(function(tr){
+      tr.querySelector('.sl').textContent=i++;
+      var t=(parseFloat(tr.querySelector('.qty').value)||0)*(parseFloat(tr.querySelector('.amt').value)||0);
+      tr.querySelector('.tot').textContent=fmt(t); sub+=t;
+    });
+    var vr=parseFloat(document.getElementById('vatRate').value)||0, v=sub*vr/100;
+    document.getElementById('subT').textContent=fmt(sub); document.getElementById('vatT').textContent=fmt(v); document.getElementById('netT').textContent=fmt(sub+v);
+  }
+  function togglePrices(){var pu=document.body.classList.contains('is-pu'); document.querySelectorAll('.pr').forEach(function(e){e.style.display=(showP.checked&&!pu)?'':'none';}); recalc();}
+  window.__togglePrices=togglePrices;
+  body.addEventListener('input',recalc);
+  body.addEventListener('click',function(e){var b=e.target.closest('.rm'); if(b){b.closest('tr').remove(); if(!body.children.length) rowHtml(); recalc();}});
+  document.getElementById('addRow').onclick=function(){var tr=rowHtml(); recalc(); tr.querySelector('textarea').focus();};
+  document.getElementById('vatRate').addEventListener('input',recalc); showP.addEventListener('change',togglePrices);
+  if(!body.children.length) rowHtml();
+  togglePrices();
+
+  // paste from Excel
+  document.getElementById('pasteGo').onclick=function(){
+    var lines=document.getElementById('pasteArea').value.split(/\r?\n/).filter(function(l){return l.trim();});
+    var first=body.querySelector('tr.it textarea');
+    if(body.children.length===1 && first && !first.value.trim()) body.innerHTML='';
+    lines.forEach(function(l){var c=l.split('\t'); rowHtml((c[0]||'').trim(), (c[1]||'').trim(), (c[2]||'').trim().toUpperCase());});
+    document.getElementById('pasteArea').value=''; recalc();
+    bootstrap.Modal.getInstance(document.getElementById('pasteMod')).hide();
+  };
+
+  document.getElementById('testMap').onclick=function(){
+    var v=document.getElementById('mapLink').value.trim(); if(!v) return;
+    var m=v.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+    window.open(m?('https://www.google.com/maps/search/?api=1&query='+m[1]+','+m[2]):v,'_blank');
+  };
+
+  // client autofill
+  var cs=document.getElementById('clientSel');
+  function fillClient(o,force){
+    function set(id,v){var el=document.getElementById(id); if(el&&(force||!el.value.trim())&&v) el.value=v;}
+    set('clientName',o.dataset.name); set('clientTel',o.dataset.tel); set('invAddr',o.dataset.addr);
+    set('shipAddr',o.dataset.ship||o.dataset.addr); set('mapLink',o.dataset.map);
+  }
+  cs.onchange=function(){var o=cs.selectedOptions[0]; if(!o||!o.value) return; fillClient(o,true);};
+  function findClient(name){name=(name||'').trim().toLowerCase(); if(!name) return null;
+    return [].slice.call(cs.options).filter(function(o){return o.value&&(o.dataset.name||'').toLowerCase()===name;})[0]||null;}
+  document.getElementById('clientName').addEventListener('change',function(){var o=findClient(this.value); if(o){cs.value=o.value; fillClient(o,false);}});
+  document.getElementById('puName').addEventListener('change',function(){var o=findClient(this.value); if(!o) return;
+    function set(id,v){var el=document.getElementById(id); if(!el.value.trim()&&v) el.value=v;}
+    set('puPhone',o.dataset.tel); set('puAddr',o.dataset.addr||o.dataset.ship); set('puMap',o.dataset.map);});
+  // ---- live auto-save: client details are stored (and updated) as soon as a field is changed ----
+  function $(id){return document.getElementById(id);}
+  function optFor(c){
+    var o=[].slice.call(cs.options).filter(function(x){return x.value==String(c.id);})[0];
+    if(!o){o=document.createElement('option'); o.value=c.id; cs.appendChild(o);}
+    o.dataset.name=c.name||''; o.dataset.tel=c.telephone||''; o.dataset.addr=c.address||''; o.dataset.ship=c.shipping_address||''; o.dataset.map=c.map_link||'';
+    o.textContent=c.name+(c.company_name?' – '+c.company_name:''); return o;
+  }
+  function flash(el,t){el.textContent=t; clearTimeout(el._t); el._t=setTimeout(function(){el.textContent='';},2500);}
+  function post(body,done,badge){
+    fetch('/api/clients/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){if(!r.ok) throw 0; return r.json();}).then(function(d){done(d.client); flash(badge,'✓ saved to Clients');})
+      .catch(function(){flash(badge,'could not auto-save');});
+  }
+  var t1,t2;
+  function saveMain(){
+    clearTimeout(t1); t1=setTimeout(function(){
+      var name=$('clientName').value.trim(); if(!name) return;
+      var sel=cs.selectedOptions[0]; var id=(sel&&sel.value&&(sel.dataset.name||'').toLowerCase()===name.toLowerCase())?sel.value:'';
+      if(!id) cs.value='';
+      post({id:id,name:name,telephone:$('clientTel').value,address:$('invAddr').value,shipping_address:$('shipAddr').value,map_link:$('mapLink').value},
+           function(c){optFor(c); cs.value=c.id;},$('clientSaved'));
+    },500);
+  }
+  ['clientName','clientTel','invAddr','shipAddr','mapLink'].forEach(function(id){$(id).addEventListener('change',saveMain);});
+  function savePu(){
+    clearTimeout(t2); t2=setTimeout(function(){
+      var name=$('puName').value.trim(); if(!name) return;
+      post({name:name,telephone:$('puPhone').value,address:$('puAddr').value,map_link:$('puMap').value,last_used:false},function(c){optFor(c);},$('puSaved'));
+    },500);
+  }
+  ['puName','puPhone','puAddr','puMap'].forEach(function(id){$(id).addEventListener('change',savePu);});
+
+  document.getElementById('testPuMap').onclick=function(){
+    var v=document.getElementById('puMap').value.trim(); if(!v) return;
+    var m=v.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+    window.open(m?('https://www.google.com/maps/search/?api=1&query='+m[1]+','+m[2]):v,'_blank');};
+  document.getElementById('sameAddr').onclick=function(e){e.preventDefault(); document.getElementById('shipAddr').value=document.getElementById('invAddr').value;};
+
+  // driver autofill
+  document.getElementById('driverSel').onchange=function(){var o=this.selectedOptions[0]; if(!o||!o.dataset.name) return;
+    document.getElementById('drvName').value=o.dataset.name; document.getElementById('drvContact').value=o.dataset.contact; document.getElementById('vehNo').value=o.dataset.veh;};
+
+  // company change -> number preview + stamps
+  {% if mode=='new' %}
+  document.getElementById('companySel').onchange=function(){
+    var id=this.value;
+    fetch('/api/next-number?co='+id+'&type='+document.getElementById('taskType').value).then(function(r){return r.json();}).then(function(d){document.getElementById('dnNum').value=d.number;});
+    fetch('/api/stamps/'+id).then(function(r){return r.json();}).then(function(list){
+      var sel=document.getElementById('stampSel'); sel.innerHTML='<option value="">— none —</option>';
+      list.forEach(function(s){var o=document.createElement('option'); o.value=s.id; o.textContent=s.name; if(s.is_default) o.selected=true; sel.appendChild(o);});
+    });
+  };
+  {% endif %}
+
+  setType(document.getElementById('taskType').value);
+  document.getElementById('dnForm').addEventListener('submit',function(e){
+    var ok=false; body.querySelectorAll('textarea').forEach(function(t){if(t.value.trim()) ok=true;});
+    if(!ok){e.preventDefault(); alert('Add at least one item to the delivery note.');}
+  });
+})();
+</script>
+{% endblock %}

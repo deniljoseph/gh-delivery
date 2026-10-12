@@ -1,0 +1,29 @@
+{% extends 'base.html' %}{% block title %}Backup / Restore{% endblock %}{% block pt %}Backup / Restore{% endblock %}
+{% block content %}
+<div class="row g-4" style="max-width:1000px;">
+  <div class="col-lg-6"><div class="pc"><div class="ph"><i class="bi bi-file-earmark-zip-fill me-1"></i>Full Backup (ZIP) <span class="badge bg-success ms-2" style="font-size:10px;">Recommended</span></div>
+    <div style="padding:18px;">
+      <p style="font-size:13px;">A complete copy of <strong>everything</strong>: every table exactly as stored, all logos, stamps and signatures, and every generated delivery note PDF in the archive, with checksums so damage is detected before a restore.</p>
+      <a href="{{ url_for('backup_zip') }}" class="btn ba"><i class="bi bi-download me-1"></i>Download Full Backup (.zip)</a>
+      <hr>
+      <p style="font-size:13px;" class="mb-2"><strong>Excel backup</strong> &mdash; all data as readable spreadsheets plus uploaded images (delivery note PDFs are rebuilt from the data).</p>
+      <a href="{{ url_for('backup') }}" class="btn btn-sm btn-outline-dark"><i class="bi bi-file-earmark-excel me-1"></i>Download Excel Backup (.xlsx)</a>
+      <p class="text-muted mt-3 mb-0" style="font-size:12px;">Keep backups safe: they contain user password hashes and business data.</p>
+    </div></div></div>
+  <div class="col-lg-6"><div class="pc"><div class="ph"><i class="bi bi-cloud-arrow-up-fill me-1"></i>Restore Backup</div>
+    <div style="padding:18px;">
+      <form method="POST" enctype="multipart/form-data" onsubmit="return confirm('This REPLACES all current data and files with the backup. Continue?');">
+        <input type="file" name="backup_file" class="form-control mb-3" accept=".zip,.xlsx" required>
+        <div class="form-check mb-3"><input class="form-check-input" type="checkbox" id="ok" required>
+          <label class="form-check-label" for="ok" style="font-size:12.5px;">I understand this will replace all current data with the contents of the backup file.</label></div>
+        <button class="btn btn-outline-danger"><i class="bi bi-arrow-counterclockwise me-1"></i>Restore</button>
+      </form>
+      <ul class="text-muted mt-3 mb-0" style="font-size:12px;padding-left:18px;">
+        <li><strong>.zip</strong> (full backup): the file is verified first; if anything is damaged nothing is changed. After restoring, the database, ids, uploads and PDF archive match the backup exactly, and files that were not in the backup are removed.</li>
+        <li><strong>.xlsx</strong>: restores data and images; PDFs are regenerated when opened.</li>
+        <li>A safety copy of the current data is saved on the server in the <code>Backups</code> folder before a ZIP restore (last 3 kept).</li>
+        <li>You will be asked to log in again afterwards.</li>
+      </ul>
+    </div></div></div>
+</div>
+{% endblock %}

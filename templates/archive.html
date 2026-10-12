@@ -1,0 +1,17 @@
+{% extends 'base.html' %}{% block title %}Archive{% endblock %}{% block pt %}Delivery Note Archive{% endblock %}
+{% block content %}
+<div class="pc mb-3"><div class="ph"><i class="bi bi-folder2-open me-1"></i>Physical Archive</div>
+  <div style="padding:14px 18px;"><p style="font-size:13px;color:#666;margin:0;"><i class="bi bi-info-circle me-1"></i>PDFs auto-saved by year. Access directly via Windows Explorer: <code>{{ archive_dir }}</code></p></div></div>
+{% if years %}{% for y in years %}<div class="pc mb-3">
+  <div class="ph"><i class="bi bi-calendar3 me-1"></i>{{ y.year }} <span class="ms-auto badge bg-secondary" style="font-size:11px;">{{ y.count }} files</span></div>
+  <div style="padding:14px 18px;"><div class="row g-2">{% for f in y.files %}
+  <div class="col-md-4 col-lg-3"><div style="border:1px solid #e0e0e0;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+    <i class="bi bi-file-pdf-fill text-danger" style="font-size:22px;flex-shrink:0;"></i>
+    <div style="min-width:0;flex:1;"><div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ f }}</div>
+    <a href="{{ url_for('dl_archive',year=y.year,fn=f) }}" style="font-size:11px;color:var(--acc-txt);text-decoration:underline;"><i class="bi bi-download me-1"></i>Download</a></div>
+  </div></div>{% endfor %}</div></div>
+</div>{% endfor %}
+{% else %}<div class="pc"><div style="padding:60px;text-align:center;color:#aaa;">
+  <i class="bi bi-folder" style="font-size:48px;display:block;margin-bottom:12px;opacity:.3;"></i>
+  <div>No delivery notes archived yet.</div><a href="{{ url_for('new_note') }}" class="btn ba mt-3">Create First Delivery Note</a>
+</div></div>{% endif %}{% endblock %}

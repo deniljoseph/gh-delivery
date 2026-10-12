@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Login – Delivery Management System</title>
+<script src="/static/js/theme.js"></script>
+<link rel="icon" type="image/png" href="/static/images/favicon.png">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="/static/css/app.css" rel="stylesheet">
+<style>
+body{background:linear-gradient(135deg,var(--side) 0%,var(--side2) 60%,var(--side) 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;}
+.card{border-radius:16px;padding:40px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.45);border:none;}
+.card{background:var(--card);color:var(--txt);}
+.btn-login{background:var(--acc);color:var(--acc-fg);border:none;padding:12px;font-size:15px;font-weight:600;border-radius:8px;width:100%;}
+.btn-login:hover{background:var(--acc-h);color:var(--acc-fg);}
+.form-control{border-radius:8px;padding:10px 14px;font-size:14px;}
+.form-label{font-size:13px;font-weight:600;color:var(--muted);}
+.dev{font-size:11px;color:#aaa;text-align:center;margin-top:18px;}
+.dev span{color:var(--acc-txt);text-decoration:underline;}
+</style></head>
+<body>
+<div class="dropdown" style="position:fixed;top:12px;right:12px;z-index:50;"><button class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;" data-bs-toggle="dropdown" data-bs-auto-close="outside" title="Theme"><i class="bi bi-palette"></i></button><div class="dropdown-menu dropdown-menu-end p-0"><div class="theme-grid"></div></div></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<div class="card">
+  <div class="text-center mb-3">
+    {% set logo = s.get('logo_path','') if s else '' %}
+    {% if logo %}<img src="/static/{{ logo }}" style="height:60px;object-fit:contain;" alt="GH">
+    {% else %}<div style="font-size:36px;font-weight:800;color:var(--txt);">GH</div>{% endif %}
+    <div style="font-size:14px;color:#666;margin-top:6px;">Delivery Management System</div>
+  </div>
+  <hr class="my-3">
+  <h5 class="fw-bold mb-1">Welcome Back</h5>
+  <p class="text-muted mb-4" style="font-size:13px;">Sign in to your account</p>
+  {% with msgs=get_flashed_messages(with_categories=true) %}{% for cat,msg in msgs %}
+  <div class="alert alert-danger py-2 mb-3" style="font-size:13px;">{{ msg }}</div>
+  {% endfor %}{% endwith %}
+  <form method="POST">
+    <div class="mb-3"><label class="form-label">Username</label><input type="text" name="username" class="form-control" required autofocus></div>
+    <div class="mb-3"><label class="form-label">Password</label>
+      <div class="input-group"><input type="password" name="password" id="pw" class="form-control" required>
+        <button class="btn btn-outline-secondary" type="button" onclick="var p=document.getElementById('pw');p.type=p.type==='password'?'text':'password'"><i class="bi bi-eye"></i></button>
+      </div></div>
+    <div class="form-check mb-4"><input class="form-check-input" type="checkbox" name="remember" id="rem"><label class="form-check-label" for="rem" style="font-size:13px;">Remember me</label></div>
+    <button type="submit" class="btn-login">Sign In</button>
+  </form>
+  <div class="text-center mt-3" style="font-size:12.5px;"><a href="/driver/login" style="color:var(--acc-txt);"><i class="bi bi-truck me-1"></i>Driver portal</a></div>
+  <div class="dev">Made by <span>Denil Joseph</span></div>
+</div>
+</body></html>

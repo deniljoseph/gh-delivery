@@ -1,0 +1,110 @@
+{% extends 'base.html' %}{% block title %}{{ 'Edit' if mode=='edit' else 'New' }} Company{% endblock %}{% block pt %}{{ 'Edit' if mode=='edit' else 'Add' }} Company{% endblock %}
+{% block content %}
+<div style="max-width:760px;">
+<div class="pc">
+  <div class="ph"><i class="bi bi-building me-1"></i>{{ 'Edit Company' if mode=='edit' else 'New Company' }}</div>
+  <div style="padding:24px;">
+    <form method="POST" enctype="multipart/form-data">
+      <div class="row g-3">
+
+        <div class="col-md-3">
+          <label class="form-label">Company Code *</label>
+          <input type="text" name="code" class="form-control fw-bold text-uppercase"
+            value="{{ co.code if co else '' }}"
+            {{ 'readonly style=background:#f5f5f5' if mode=='edit' else 'required' }}
+            maxlength="10" placeholder="GHM">
+          <small class="text-muted">Used in invoice numbers</small>
+        </div>
+        <div class="col-md-9">
+          <label class="form-label">Legal Company Name *</label>
+          <input type="text" name="name" class="form-control" value="{{ co.name if co else '' }}" required>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Address Line 1 <small class="text-muted fw-normal">(Street / Building / Warehouse)</small></label>
+          <input type="text" name="address" class="form-control"
+            value="{{ co.address if co else '' }}"
+            placeholder="e.g. L06, L07, L08, WH Phase 3, Dubai Industrial City">
+        </div>
+        <div class="col-12">
+          <label class="form-label">Address Line 2 <small class="text-muted fw-normal">(City / Area / Mall)</small></label>
+          <input type="text" name="address2" class="form-control"
+            value="{{ co.address2 if co else '' }}"
+            placeholder="e.g. Saih Shuaib 4, Dubai">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Address Line 3 <small class="text-muted fw-normal">(PO Box)</small></label>
+          <input type="text" name="address3" class="form-control"
+            value="{{ co.address3 if co else '' }}"
+            placeholder="e.g. PO. Box: 16794">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Address Line 4 <small class="text-muted fw-normal">(Phone line on letterhead)</small></label>
+          <input type="text" name="address4" class="form-control"
+            value="{{ co.address4 if co else '' }}"
+            placeholder="e.g. Phone: +97145578898">
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Telephone</label>
+          <input type="text" name="telephone" class="form-control" value="{{ co.telephone if co else '' }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Email</label>
+          <input type="email" name="email" class="form-control" value="{{ co.email if co else '' }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Website</label>
+          <input type="text" name="website" class="form-control" value="{{ co.website if co else '' }}">
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">TRN Number</label>
+          <input type="text" name="trn" class="form-control" value="{{ co.trn if co else '' }}" placeholder="e.g. 104150505600003">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Delivery Note Prefix</label>
+          <input type="text" name="dn_prefix" class="form-control" value="{{ co.dn_prefix if co else '' }}" placeholder="GHM-DN">
+          <small class="text-muted">&rarr; GHM-DN-2026-0001</small>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Company Logo <small class="text-muted fw-normal">(used in PDF header)</small></label>
+          {% if co and co.logo_path %}
+          <div class="mb-2 p-2 rounded d-inline-block" style="background:var(--side);">
+            <img src="/static/{{ co.logo_path }}" style="height:36px;object-fit:contain;" alt="logo">
+          </div><br>
+          {% endif %}
+          <input type="file" name="logo" class="form-control" accept="image/*">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Company Stamp</label>
+          {% if co and co.stamp_path %}
+          <div class="mb-2"><img src="/static/{{ co.stamp_path }}" style="height:44px;border-radius:4px;" alt="stamp"></div>
+          {% endif %}
+          <input type="file" name="stamp" class="form-control" accept="image/*">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Sort Order</label>
+          <input type="number" name="sort_order" class="form-control" value="{{ co.sort_order if co else 99 }}" min="1" max="999">
+        </div>
+
+        {% if mode == 'edit' %}
+        <div class="col-12">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="is_active" id="isAct" {{ 'checked' if co.is_active }}>
+            <label class="form-check-label" for="isAct">Company is Active</label>
+          </div>
+        </div>
+        {% endif %}
+
+      </div>
+      <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn ba px-4"><i class="bi bi-save me-1"></i>Save Company</button>
+        <a href="{{ url_for('company_settings') }}#companies" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+</div>
+{% endblock %}

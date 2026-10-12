@@ -1,0 +1,12 @@
+{% extends 'base.html' %}{% block title %}Audit Log{% endblock %}{% block pt %}Audit Log{% endblock %}
+{% block content %}<div class="pc">
+  <div class="ph"><i class="bi bi-journal-text me-1"></i>Audit Log <span class="ms-auto badge bg-secondary" style="font-size:11px;">{{ logs|length }}</span></div>
+  <div class="table-responsive"><table class="table gt mb-0" style="font-size:12.5px;">
+    <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th><th>IP</th></tr></thead>
+    <tbody>{% for lg in logs %}<tr>
+      <td style="color:var(--muted);font-size:11px;">{{ lg.created_at|dubai('%Y-%m-%d %H:%M:%S') }}</td><td><strong>{{ lg.username or '—' }}</strong></td>
+      <td><span class="badge" style="font-size:10px;background:#e5e5e5;color:#111;">{{ lg.action.replace('_',' ') }}</span></td>
+      <td style="color:#666;">{{ lg.details or '—' }}</td><td style="color:#aaa;font-size:11px;">{{ lg.ip_address or '—' }}</td>
+    </tr>{% else %}<tr><td colspan="5" class="text-center text-muted py-4">No entries.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>{% endblock %}

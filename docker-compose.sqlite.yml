@@ -1,0 +1,19 @@
+# Simple option: one container, SQLite + files in a Docker volume
+#   docker compose -f docker-compose.sqlite.yml up -d --build
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-5000}:5000"
+    environment:
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      BEHIND_HTTPS_PROXY: ${BEHIND_HTTPS_PROXY:-0}
+      DATA_DIR: /data
+      TZ: Asia/Dubai
+    volumes:
+      - appdata:/data
+
+volumes:
+  appdata:

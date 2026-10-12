@@ -1,0 +1,69 @@
+{% extends 'base.html' %}{% block title %}Signatories & Stamps{% endblock %}{% block pt %}Signatories & Stamps{% endblock %}
+{% block content %}
+<div class="row g-4">
+<div class="col-lg-6"><div class="pc">
+  <div class="ph d-flex align-items-center justify-content-between"><span><i class="bi bi-pen-fill me-1"></i>Authorised Signatories</span>
+    <button class="btn btn-sm ba" data-bs-toggle="modal" data-bs-target="#addSigMod"><i class="bi bi-plus me-1"></i>Add</button></div>
+  <table class="table gt mb-0" style="font-size:13px;">
+    <thead><tr><th>Name / Position</th><th>Preview</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>{% for sg in sigs %}<tr>
+      <td><strong>{{ sg.name }}</strong>{% if sg.is_default %} <span class="badge" style="background:var(--acc);color:var(--acc-fg);font-size:9px;">Default</span>{% endif %}<div style="font-size:11px;color:var(--muted);">{{ sg.position or '' }}</div></td>
+      <td>{% if sg.image_path %}<img src="/static/{{ sg.image_path }}" style="height:32px;background:#f5f5f5;padding:2px;border-radius:4px;">{% else %}—{% endif %}</td>
+      <td><span class="{{ 'badge-on' if sg.is_active else 'badge-off' }}">{{ 'Active' if sg.is_active else 'Off' }}</span></td>
+      <td><div class="d-flex gap-1">
+        {% if not sg.is_default %}<form method="POST" action="{{ url_for('set_default_sig',sid=sg.id) }}"><button class="btn btn-sm btn-outline-warning" title="Set Default"><i class="bi bi-star"></i></button></form>{% endif %}
+        <form method="POST" action="{{ url_for('toggle_signatory',sid=sg.id) }}"><button class="btn btn-sm btn-outline-secondary"><i class="bi bi-toggle-{{ 'on' if sg.is_active else 'off' }}"></i></button></form>
+        <form method="POST" action="{{ url_for('delete_signatory',sid=sg.id) }}" onsubmit="return confirm('Permanently delete?')"><button class="btn btn-sm btn-danger"><i class="bi bi-trash-fill"></i></button></form>
+      </div></td>
+    </tr>{% else %}<tr><td colspan="4" class="text-center text-muted py-3">No signatories.</td></tr>{% endfor %}</tbody>
+  </table>
+</div></div>
+
+<div class="col-lg-6"><div class="pc">
+  <div class="ph d-flex align-items-center justify-content-between"><span><i class="bi bi-patch-check-fill me-1"></i>Company Stamps</span>
+    <button class="btn btn-sm ba" data-bs-toggle="modal" data-bs-target="#addStmpMod"><i class="bi bi-plus me-1"></i>Add</button></div>
+  {% for co in companies %}
+  <div style="padding:8px 16px 2px;background:#f8f8f8;border-bottom:1px solid #eee;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);">{{ co.code }} — {{ co.name[:30] }}</div></div>
+  {% set co_stamps = stamps|selectattr('company_id','eq',co.id)|list %}
+  {% for st in co_stamps %}<div style="padding:10px 16px;border-bottom:1px solid var(--soft);display:flex;align-items:center;gap:12px;">
+    <div style="flex:1;"><strong style="font-size:13px;">{{ st.name }}</strong>{% if st.is_default %}<span class="badge ms-1" style="background:#000;font-size:9px;">Default</span>{% endif %}
+    <div><span class="{{ 'badge-on' if st.is_active else 'badge-off' }}">{{ 'Active' if st.is_active else 'Off' }}</span></div></div>
+    {% if st.image_path %}<img src="/static/{{ st.image_path }}" style="height:46px;border-radius:4px;">{% endif %}
+    <div class="d-flex gap-1 flex-column">
+      {% if not st.is_default %}<form method="POST" action="{{ url_for('set_default_stamp',sid=st.id) }}"><button class="btn btn-sm btn-outline-warning" title="Default"><i class="bi bi-star"></i></button></form>{% endif %}
+      <form method="POST" action="{{ url_for('toggle_stamp',sid=st.id) }}"><button class="btn btn-sm btn-outline-secondary"><i class="bi bi-toggle-{{ 'on' if st.is_active else 'off' }}"></i></button></form>
+      <form method="POST" action="{{ url_for('delete_stamp',sid=st.id) }}" onsubmit="return confirm('Delete?')"><button class="btn btn-sm btn-danger"><i class="bi bi-trash-fill"></i></button></form>
+    </div>
+  </div>{% else %}<div style="padding:8px 16px;color:#aaa;font-size:12px;border-bottom:1px solid var(--soft);">No stamps for {{ co.code }}</div>{% endfor %}
+  {% endfor %}
+</div></div>
+</div>
+
+<div class="modal fade" id="addSigMod" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <form method="POST" action="{{ url_for('add_signatory') }}" enctype="multipart/form-data">
+    <div class="modal-header modal-hd"><h6 class="modal-title">Add Signatory</h6><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="mb-3"><label class="form-label">Full Name *</label><input type="text" name="name" class="form-control" required></div>
+      <div class="mb-3"><label class="form-label">Position</label><input type="text" name="position" class="form-control" placeholder="e.g. General Manager"></div>
+      <div class="mb-3"><label class="form-label">Phone <small class="text-muted fw-normal">(shown under the name on delivery notes)</small></label><input type="text" name="phone" class="form-control" placeholder="e.g. 971 50 394 9037"></div>
+      <div class="mb-3"><label class="form-label">Signature Image</label><input type="file" name="image" class="form-control" accept="image/*"><small class="text-muted">PNG with transparent background recommended</small></div>
+      <div class="form-check"><input class="form-check-input" type="checkbox" name="is_default" id="sigDef"><label class="form-check-label" for="sigDef">Set as Default</label></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn ba">Add Signatory</button></div>
+  </form>
+</div></div></div>
+
+<div class="modal fade" id="addStmpMod" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <form method="POST" action="{{ url_for('add_stamp') }}" enctype="multipart/form-data">
+    <div class="modal-header modal-hd"><h6 class="modal-title">Add Company Stamp</h6><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="mb-3"><label class="form-label">Stamp Name *</label><input type="text" name="name" class="form-control" required placeholder="e.g. GHM Official Seal"></div>
+      <div class="mb-3"><label class="form-label">Company *</label>
+        <select name="company_id" class="form-select">{% for co in companies %}<option value="{{ co.id }}">{{ co.code }} – {{ co.name[:35] }}</option>{% endfor %}</select></div>
+      <div class="mb-3"><label class="form-label">Stamp Image</label><input type="file" name="image" class="form-control" accept="image/*"></div>
+      <div class="form-check"><input class="form-check-input" type="checkbox" name="is_default" id="stpDef"><label class="form-check-label" for="stpDef">Set as Default for Company</label></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn ba">Add Stamp</button></div>
+  </form>
+</div></div></div>
+{% endblock %}

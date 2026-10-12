@@ -1,0 +1,65 @@
+{% extends 'base.html' %}{% block title %}Drivers{% endblock %}{% block pt %}Drivers &amp; Vehicles{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div style="font-size:12.5px;color:#666;"><i class="bi bi-phone me-1"></i>Each driver has their own login for the <a href="/driver/login" target="_blank"><strong>driver portal</strong></a> (<code>/driver/login</code>) and only sees deliveries assigned to them.</div>
+  <button class="btn btn-sm ba" onclick="editDrv('','','','')"><i class="bi bi-plus-circle me-1"></i>Add Driver</button>
+</div>
+<div class="pc"><div class="ph"><i class="bi bi-person-badge me-1"></i>Saved Drivers</div>
+<div class="table-responsive"><table class="table gt mb-0">
+  <thead><tr><th>#</th><th>Driver Name</th><th>Contact Number</th><th>Vehicle Number</th><th>Pending</th><th>Portal login</th><th>Actions</th></tr></thead>
+  <tbody>{% for d in drivers %}<tr>
+    <td style="color:#aaa;font-size:12px;">{{ loop.index }}</td><td><strong>{{ d.name }}</strong></td><td>{{ d.contact or '—' }}</td><td>{{ d.vehicle_number or '—' }}</td>
+    <td>{% if d.pending_count %}<span class="badge-pending">{{ d.pending_count }} pending</span>{% else %}<span style="color:#aaa;">0</span>{% endif %}</td>
+    <td style="font-size:12.5px;">
+      {% if d.login_user %}<i class="bi bi-person-check me-1"></i><strong>{{ d.login_user }}</strong>{% if d.login_last %}<div style="font-size:10.5px;color:var(--muted);">last in {{ d.login_last|dubai }}</div>{% endif %}
+      {% else %}<span style="color:var(--muted);">No login</span>{% endif %}
+      {% if session.get('role')=='admin' %}
+      <div class="mt-1 d-flex gap-1">
+        <button class="btn btn-sm bg" style="font-size:11px;padding:2px 8px;" onclick='loginDrv({{ d.id }}, {{ d.name|tojson }}, {{ (d.login_user or "")|tojson }})'>{{ 'Reset / rename' if d.login_user else 'Create login' }}</button>
+        {% if d.login_user %}<form method="POST" action="{{ url_for('delete_driver_login',did=d.id) }}" onsubmit="return confirm('Remove {{ d.name }}\'s portal login?')"><button class="btn btn-sm btn-outline-danger" style="font-size:11px;padding:2px 8px;">Remove</button></form>{% endif %}
+      </div>{% endif %}
+    </td>
+    <td><div class="d-flex gap-1">
+      <button class="btn btn-sm bg" onclick='editDrv({{ d.id }}, {{ d.name|tojson }}, {{ (d.contact or "")|tojson }}, {{ (d.vehicle_number or "")|tojson }})'><i class="bi bi-pencil"></i></button>
+      <form method="POST" action="{{ url_for('delete_driver',did=d.id) }}" onsubmit="return confirm('Remove {{ d.name }}? Their portal login will be disabled.')"><button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></form>
+    </div></td></tr>
+  {% else %}<tr><td colspan="7" class="text-center text-muted py-4">No saved drivers yet.</td></tr>{% endfor %}</tbody>
+</table></div></div>
+
+<div class="modal fade" id="drvMod" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <form method="POST" action="{{ url_for('save_driver') }}">
+    <input type="hidden" name="id" id="d_id">
+    <div class="modal-header modal-hd"><h6 class="modal-title">Driver</h6><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="mb-3"><label class="form-label">Driver Name *</label><input type="text" name="name" id="d_name" class="form-control" required></div>
+      <div class="mb-3"><label class="form-label">Contact Number</label><input type="text" name="contact" id="d_contact" class="form-control"></div>
+      <div class="mb-3"><label class="form-label">Vehicle Number</label><input type="text" name="vehicle_number" id="d_veh" class="form-control"></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn ba">Save</button></div>
+  </form>
+</div></div></div>
+
+<div class="modal fade" id="loginMod" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <form method="POST" id="loginForm" autocomplete="off">
+    <div class="modal-header modal-hd"><h6 class="modal-title"><i class="bi bi-phone me-1"></i>Driver portal login – <span id="l_name"></span></h6><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="mb-3"><label class="form-label">Username</label><input type="text" name="username" id="l_user" class="form-control" autocapitalize="none" placeholder="e.g. alam"></div>
+      <div class="mb-2"><label class="form-label">Password <small class="text-muted fw-normal" id="l_hint">(min 6 characters)</small></label><input type="text" name="password" class="form-control" autocomplete="new-password"></div>
+      <small class="text-muted">The driver signs in at <strong>/driver/login</strong> on their phone. Leave the password blank to keep the current one.</small>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn ba">Save login</button></div>
+  </form>
+</div></div></div>
+{% endblock %}
+{% block xs %}<script>
+function editDrv(id,name,contact,veh){
+  document.getElementById('d_id').value=id; document.getElementById('d_name').value=name;
+  document.getElementById('d_contact').value=contact; document.getElementById('d_veh').value=veh;
+  new bootstrap.Modal(document.getElementById('drvMod')).show();
+}
+function loginDrv(id,name,user){
+  document.getElementById('loginForm').action='/drivers/'+id+'/login';
+  document.getElementById('l_name').textContent=name; document.getElementById('l_user').value=user||'';
+  new bootstrap.Modal(document.getElementById('loginMod')).show();
+}
+</script>{% endblock %}

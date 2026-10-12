@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Driver Portal – Login</title>
+<meta name="theme-color" content="#000000">
+<script src="/static/js/theme.js"></script>
+<link rel="icon" type="image/png" href="/static/images/favicon.png">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="/static/css/app.css" rel="stylesheet">
+<style>
+body{background:var(--side);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;}
+.card{background:var(--card);color:var(--txt);border-radius:18px;padding:32px 26px;width:100%;max-width:400px;border:none;}
+.btn-login{background:var(--acc);color:var(--acc-fg);border:none;padding:14px;font-size:16px;font-weight:700;border-radius:10px;width:100%;}
+.btn-login:hover{background:var(--acc-h);color:var(--acc-fg);}
+.form-control{border-radius:10px;padding:12px 14px;font-size:16px;}
+</style></head><body>
+<div class="dropdown" style="position:fixed;top:12px;right:12px;z-index:50;"><button class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;" data-bs-toggle="dropdown" data-bs-auto-close="outside" title="Theme"><i class="bi bi-palette"></i></button><div class="dropdown-menu dropdown-menu-end p-0"><div class="theme-grid"></div></div></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<div class="card">
+  <div class="text-center mb-3">
+    {% set logo = s.get('logo_path','') if s else '' %}
+    {% if logo %}<img src="/static/{{ logo }}" style="height:56px;object-fit:contain;" alt="GH">{% else %}<div style="font-size:34px;font-weight:800;">GH</div>{% endif %}
+    <div class="mt-2" style="font-size:15px;font-weight:700;"><i class="bi bi-truck me-1"></i>Driver Portal</div>
+    <div style="font-size:12.5px;color:#666;">Sign in to see your deliveries</div>
+  </div>
+  {% with msgs=get_flashed_messages(with_categories=true) %}{% for cat,msg in msgs %}<div class="alert alert-danger py-2 mb-3" style="font-size:13px;">{{ msg }}</div>{% endfor %}{% endwith %}
+  <form method="POST">
+    <div class="mb-3"><label class="form-label">Username</label><input type="text" name="username" class="form-control" required autofocus autocapitalize="none" autocomplete="username"></div>
+    <div class="mb-4"><label class="form-label">Password</label>
+      <div class="input-group"><input type="password" name="password" id="pw" class="form-control" required autocomplete="current-password">
+      <button class="btn btn-outline-secondary" type="button" onclick="var p=document.getElementById('pw');p.type=p.type==='password'?'text':'password'"><i class="bi bi-eye"></i></button></div></div>
+    <button type="submit" class="btn-login">Sign In</button>
+  </form>
+  <div class="text-center mt-3" style="font-size:12px;color:#888;">Office staff? <a href="/login" style="color:var(--acc-txt);">Staff login</a></div>
+</div>
+</body></html>

@@ -1,0 +1,70 @@
+{% extends 'base.html' %}{% block title %}{{ n.dn_number }}{% endblock %}{% block pt %}{{ n.dn_number }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div class="d-flex align-items-center gap-2">
+    <a href="{{ url_for('notes') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+    <span class="co-pill">{{ n.co_code }}</span>{% if is_pickup(n) %}<span class="badge-pu">PICKUP</span>{% endif %}
+    {% if n.delivery_status=='delivered' %}<span class="badge-on">Delivered · {{ (n.delivered_at or n.delivered_on)|fmt_dt }}</span>
+    {% elif n.delivery_status=='cancelled' %}<span class="badge-off">Cancelled</span>
+    {% else %}<span class="badge-pending">Pending delivery</span>{% endif %}
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('download_pdf',nid=n.id) }}" class="btn btn-sm ba"><i class="bi bi-download me-1"></i>Download PDF</a>
+    <a href="{{ url_for('preview_pdf',nid=n.id) }}" target="_blank" class="btn btn-sm bg"><i class="bi bi-printer me-1"></i>Open / Print</a>
+    {% if n.map_link %}<a href="{{ n.map_link }}" target="_blank" rel="noopener" class="btn btn-sm bg"><i class="bi bi-geo-alt me-1"></i>Open location</a>{% endif %}
+    {% if can('dn_edit') %}<a href="{{ url_for('edit_note',nid=n.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil me-1"></i>Edit</a>{% endif %}
+    {% if can('dn_create') %}<a href="{{ url_for('duplicate_note',nid=n.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-copy me-1"></i>Duplicate</a>{% endif %}
+    {% if can('dn_delete') %}<form method="POST" action="{{ url_for('delete_note',nid=n.id) }}" onsubmit="return confirm('Delete {{ n.dn_number }}?')"><button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1"></i>Delete</button></form>{% endif %}
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-5">
+    {% if can('dn_deliver') %}
+    <div class="pc mb-3"><div class="ph"><i class="bi bi-clipboard-check me-1"></i>Delivery Status</div>
+    <form method="POST" action="{{ url_for('set_status',nid=n.id) }}" style="padding:16px;"><div class="row g-2">
+      <div class="col-6"><label class="form-label">Status</label><select name="delivery_status" id="stSel" class="form-select form-select-sm">
+        <option value="pending" {{ 'selected' if n.delivery_status=='pending' }}>Pending</option><option value="delivered" {{ 'selected' if n.delivery_status=='delivered' }}>Delivered</option><option value="cancelled" {{ 'selected' if n.delivery_status=='cancelled' }}>Cancelled</option></select></div>
+      <div class="col-3 dl"><label class="form-label">Delivered on</label><input type="date" name="delivered_on" class="form-control form-control-sm" value="{{ n.delivered_on or today }}"></div>
+      <div class="col-3 dl"><label class="form-label">Time</label><input type="time" name="delivered_time" class="form-control form-control-sm" value="{{ (n.delivered_at or '')[11:16] or now_time }}"></div>
+      <div class="col-12 dl"><label class="form-label">Received by</label><input type="text" name="received_by" class="form-control form-control-sm" value="{{ n.received_by or '' }}" placeholder="Name of person who signed"></div>
+      <div class="col-12"><label class="form-label">Remarks</label><input type="text" name="status_remarks" class="form-control form-control-sm" value="{{ n.status_remarks or '' }}" placeholder="e.g. 1 item damaged, to be replaced"></div>
+      <div class="col-12"><button class="btn btn-sm bg"><i class="bi bi-check2 me-1"></i>Update status</button></div>
+    </div></form></div>
+    {% endif %}
+    <div class="pc mb-3"><div class="ph"><i class="bi bi-info-circle me-1"></i>Details</div>
+      <table class="table table-sm mb-0" style="font-size:13px;"><tbody>
+        <tr><td class="text-muted" style="width:130px;">Date</td><td>{{ fmt_date(n.dn_date) }}</td></tr>
+        <tr><td class="text-muted">Invoice No</td><td>{{ n.invoice_no or '—' }}</td></tr>
+        <tr><td class="text-muted">Order No</td><td>{{ n.order_no or '—' }}</td></tr>
+        <tr><td class="text-muted">Project</td><td>{{ n.project_name or '—' }}</td></tr>
+        <tr><td class="text-muted">Location</td><td>{{ n.location or '—' }}</td></tr>
+        <tr><td class="text-muted">Mr/Ms</td><td>{{ n.client_name or '—' }}{% if n.client_telephone %} · {{ n.client_telephone }}{% endif %}</td></tr>
+        {% if is_pickup(n) %}
+        <tr><td class="text-muted">Collect from</td><td><strong>{{ n.pickup_name or '—' }}</strong>{% if n.pickup_phone %} · {{ n.pickup_phone }}{% endif %}<div style="white-space:pre-line;">{{ n.pickup_address or '' }}</div>
+          {% if n.pickup_map_link %}<a href="{{ n.pickup_map_link }}" target="_blank" rel="noopener"><i class="bi bi-geo-alt me-1"></i>Pickup location</a>{% endif %}</td></tr>
+        <tr><td class="text-muted">Collected</td><td>{% if n.picked_up_at %}<strong>{{ n.picked_up_at|fmt_dt }}</strong>{% if n.picked_up_by %}<div style="font-size:11.5px;">Handed over by {{ n.picked_up_by }}</div>{% endif %}{% if n.pickup_remarks %}<div style="font-size:11.5px;color:var(--muted);">{{ n.pickup_remarks }}</div>{% endif %}{% else %}<span class="text-muted">Not collected yet</span>{% endif %}</td></tr>
+        {% endif %}
+        <tr><td class="text-muted">{{ 'Deliver to' if is_pickup(n) else 'Shipping to' }}</td><td style="white-space:pre-line;">{{ (n.shipping_address or n.invoice_address) or '—' }}</td></tr>
+        <tr><td class="text-muted">Vehicle</td><td>{{ n.vehicle_number or '—' }}</td></tr>
+        <tr><td class="text-muted">Driver</td><td>{{ n.driver_name or '—' }}{% if n.driver_contact %} · {{ n.driver_contact }}{% endif %}
+          <div style="font-size:11px;color:var(--muted);">{{ 'Visible in this driver\'s portal' if n.driver_id else 'Not linked to a saved driver (no portal access)' }}</div></td></tr>
+        <tr><td class="text-muted">{{ 'Drop-off map' if is_pickup(n) else 'Location' }}</td><td>{% if n.map_link %}<a href="{{ n.map_link }}" target="_blank" rel="noopener"><i class="bi bi-geo-alt me-1"></i>Open in Google Maps</a>{% else %}<span class="text-muted">No map link added</span>{% endif %}</td></tr>
+        {% if n.delivery_status=='delivered' %}<tr><td class="text-muted">Delivered</td><td><strong>{{ (n.delivered_at or n.delivered_on)|fmt_dt }}</strong></td></tr>
+        <tr><td class="text-muted">Received by</td><td>{{ n.received_by or '—' }}</td></tr>
+        <tr><td class="text-muted">Marked by</td><td>{{ n.delivered_by or '—' }}</td></tr>{% endif %}
+        {% if n.status_remarks %}<tr><td class="text-muted">Remarks</td><td>{{ n.status_remarks }}</td></tr>{% endif %}
+      </tbody></table></div>
+    <div class="pc"><div class="ph"><i class="bi bi-box-seam me-1"></i>Items ({{ items|length }})</div>
+      <table class="table table-sm mb-0" style="font-size:12.5px;"><tbody>
+      {% for it in items %}<tr><td style="width:30px;color:#aaa;">{{ it.sr_no }}</td><td>{{ it.description }}</td><td class="text-end text-nowrap"><strong>{{ fmt_qty(it.quantity) }}</strong> {{ it.unit }}</td></tr>{% endfor %}
+      {% if n.show_prices %}<tr><td colspan="2" class="text-end">Net payable ({{ n.currency }})</td><td class="text-end"><strong>{{ "{:,.2f}".format(n.net_total or 0) }}</strong></td></tr>{% endif %}
+      </tbody></table></div>
+  </div>
+  <div class="col-lg-7"><div class="pc"><div class="ph"><i class="bi bi-file-earmark-pdf me-1"></i>PDF Preview</div>
+    <iframe src="{{ url_for('preview_pdf',nid=n.id) }}#toolbar=0&view=FitH" style="width:100%;height:82vh;border:0;"></iframe></div></div>
+</div>
+{% endblock %}
+{% block xs %}<script>
+var stSel=document.getElementById('stSel');
+if(stSel){function t(){document.querySelectorAll('.dl').forEach(function(e){e.style.display=stSel.value==='delivered'?'':'none';});} stSel.onchange=t; t();}
+</script>{% endblock %}

@@ -1,0 +1,34 @@
+# Fly.io config for the Delivery Management app (SQLite on a persistent volume, ONE machine).
+# Change `app` to a globally unique name, and primary_region to the closest region (see: fly platform regions).
+app = "gh-delivery-CHANGE-ME"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  DATA_DIR = "/data"
+  BEHIND_HTTPS_PROXY = "1"     # Fly terminates HTTPS; cookies are marked Secure only on https requests
+  TZ = "Asia/Dubai"
+
+[[mounts]]
+  source = "wfms_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 5000
+  force_https = true
+  auto_stop_machines = "off"   # keep it always on (no cold starts for drivers)
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/health"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "40s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

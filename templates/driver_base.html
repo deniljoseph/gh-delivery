@@ -3,6 +3,8 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#000000">
 <title>{% block title %}Driver Portal{% endblock %}</title>
+<meta name="color-scheme" content="light dark">
+<script>window.GH_SYSTEM_DARK=true;</script>
 <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.png') }}">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -34,10 +36,66 @@ details.dp-more summary{cursor:pointer;font-size:13px;font-weight:600;padding:6p
 .dp-step.locked{opacity:.55;}
 .dp-step .dp-title{font-weight:800;font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:var(--acc-txt);margin-bottom:6px;}
 .dp-pill{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.4px;padding:2px 8px;border-radius:12px;border:1px dashed currentColor;}
+.dp-fee{background:#fff8e1;border:1px solid #f1d98a;color:#3b2f00;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.dp-fee .dp-lbl{color:#7a6400;}
+.dp-fee .dp-due{font-size:12px;font-weight:600;color:#8a6d00;}
+[data-bs-theme=dark] .dp-fee{background:#3a3000;border-color:#6b5a00;color:#ffeaa7;}
+[data-bs-theme=dark] .dp-fee .dp-lbl,[data-bs-theme=dark] .dp-fee .dp-due{color:#f0d77a;}
+.sig-prev{display:none;max-width:100%;height:70px;object-fit:contain;background:#fff;border:1px solid var(--bd);border-radius:8px;margin-bottom:8px;}
+#sigOv{display:none;position:fixed;inset:0;z-index:3000;background:var(--page);flex-direction:column;height:100dvh;}
+#sigOv .sig-top{background:var(--side);color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;}
+#sigCv{width:100%;height:100%;background:#fff;border:2px dashed var(--bd);border-radius:12px;touch-action:none;display:block;}
 </style>
 {% block xh %}{% endblock %}
 </head><body>
 {% block body %}{% endblock %}
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<div id="sigOv" role="dialog" aria-label="Receiver signature">
+  <div class="sig-top"><strong><i class="bi bi-pencil-square me-2"></i>Receiver signature</strong><button type="button" id="sigX" class="btn btn-sm" style="color:#fff;font-size:20px;line-height:1;">&times;</button></div>
+  <div style="padding:10px 16px 6px;font-size:13px;color:var(--muted);">Hand the phone to the receiver and ask them to sign inside the box.</div>
+  <div style="flex:1;min-height:0;padding:0 16px;position:relative;"><canvas id="sigCv"></canvas><div id="sigHint" style="position:absolute;inset:0 16px;display:flex;align-items:center;justify-content:center;pointer-events:none;color:#bbb;font-size:22px;">Sign here</div></div>
+  <div style="padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;"><button type="button" class="dp-btn line" id="sigClear" style="width:35%;"><i class="bi bi-eraser"></i>Clear</button><button type="button" class="dp-btn solid" id="sigSave"><i class="bi bi-check2"></i>Use signature</button></div>
+</div>
+<script>
+(function(){
+  var ov=document.getElementById('sigOv'); if(!ov) return;
+  var cv=document.getElementById('sigCv'), hint=document.getElementById('sigHint'), ctx, drawing=false, dirty=false, form=null, bb=null;
+  function setup(){
+    var r=cv.getBoundingClientRect(), d=window.devicePixelRatio||1;
+    cv.width=Math.round(r.width*d); cv.height=Math.round(r.height*d);
+    ctx=cv.getContext('2d'); ctx.setTransform(d,0,0,d,0,0);
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,r.width,r.height);
+    ctx.lineWidth=2.8; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle='#000';
+    dirty=false; bb=null; hint.style.display='flex';
+  }
+  function grow(p){ if(!bb) bb={x0:p.x,y0:p.y,x1:p.x,y1:p.y}; else {bb.x0=Math.min(bb.x0,p.x); bb.y0=Math.min(bb.y0,p.y); bb.x1=Math.max(bb.x1,p.x); bb.y1=Math.max(bb.y1,p.y);} }
+  function pt(e){var r=cv.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top};}
+  cv.addEventListener('pointerdown',function(e){e.preventDefault(); try{cv.setPointerCapture(e.pointerId);}catch(x){} drawing=true; var p=pt(e); grow(p); ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p.x+.1,p.y+.1); ctx.stroke(); dirty=true; hint.style.display='none';});
+  cv.addEventListener('pointermove',function(e){if(!drawing) return; e.preventDefault(); var p=pt(e); grow(p); ctx.lineTo(p.x,p.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(p.x,p.y);});
+  ['pointerup','pointercancel','pointerleave'].forEach(function(n){cv.addEventListener(n,function(){drawing=false;});});
+  function close(){ov.style.display='none'; document.body.style.overflow='';}
+  document.addEventListener('click',function(e){
+    var o=e.target.closest('[data-sig-open]'); if(o){form=o.closest('form'); ov.style.display='flex'; document.body.style.overflow='hidden'; setup(); return;}
+    var del=e.target.closest('.sig-del'); if(del){var f=del.closest('form'); f.querySelector('.sig-val').value=''; f.querySelector('.sig-prev').style.display='none'; del.style.display='none'; f.querySelector('[data-sig-open] span').textContent='Receiver signs on phone';}
+  });
+  document.getElementById('sigX').onclick=close;
+  document.getElementById('sigClear').onclick=setup;
+  document.getElementById('sigSave').onclick=function(){
+    if(!dirty){alert('Please let the receiver sign inside the box first.'); return;}
+    var d=cv.width/cv.getBoundingClientRect().width, pad=14;           // crop tightly around the strokes
+    var sx=Math.max(0,Math.floor((bb.x0-pad)*d)), sy=Math.max(0,Math.floor((bb.y0-pad)*d));
+    var sw=Math.min(cv.width-sx,Math.ceil((bb.x1-bb.x0+2*pad)*d)), sh=Math.min(cv.height-sy,Math.ceil((bb.y1-bb.y0+2*pad)*d));
+    if(sw<40) sw=Math.min(cv.width-sx,40); if(sh<40) sh=Math.min(cv.height-sy,40);
+    var w=Math.min(sw,700), h=Math.max(1,Math.round(sh*w/sw)), t=document.createElement('canvas'); t.width=w; t.height=h;
+    var c=t.getContext('2d'); c.fillStyle='#fff'; c.fillRect(0,0,w,h); c.drawImage(cv,sx,sy,sw,sh,0,0,w,h);
+    var data=t.toDataURL('image/png');
+    form.querySelector('.sig-val').value=data;
+    var pv=form.querySelector('.sig-prev'); pv.src=data; pv.style.display='block';
+    form.querySelector('.sig-del').style.display='inline-block';
+    form.querySelector('[data-sig-open] span').textContent='Sign again';
+    close();
+  };
+})();
+</script>
 {% block xs %}{% endblock %}
 </body></html>

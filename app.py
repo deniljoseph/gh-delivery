@@ -192,6 +192,11 @@ def init_db():
                            ("delivery_notes", "picked_up_at", "TEXT"),
                            ("delivery_notes", "picked_up_by", "TEXT"),
                            ("delivery_notes", "pickup_remarks", "TEXT"),
+                           ("delivery_notes", "delivery_fee", "REAL"),
+                           ("delivery_notes", "fee_collected", "INTEGER DEFAULT 0"),
+                           ("delivery_notes", "fee_collected_at", "TEXT"),
+                           ("delivery_notes", "fee_collected_by", "TEXT"),
+                           ("delivery_notes", "receiver_signature", "TEXT"),
                            ("clients", "shipping_address", "TEXT"),
                            ("clients", "map_link", "TEXT")]:
         try:
@@ -349,6 +354,30 @@ def fmt_qty(q):
     except Exception: return str(q or '')
     return str(int(q)) if q == int(q) else f"{q:g}"
 
+def clean_phone(v):
+    """Phone boxes are pre-filled with '+971 '. If the user left only the prefix (or nothing), store an empty value."""
+    t = (v or '').strip()
+    return '' if re.fullmatch(r'\+?\s*971[\s\-]*0?', t) else t
+
+def clean_signature(data):
+    """Receiver signature drawn on the driver's phone: validate, flatten onto white, shrink and return base64 PNG (or '')."""
+    try:
+        data = (data or '').strip()
+        if not data.startswith('data:image/png;base64,') or len(data) > 700000: return ''
+        from PIL import Image
+        im = Image.open(io.BytesIO(base64.b64decode(data.split(',', 1)[1])))
+        im.load()
+        if im.width < 20 or im.height < 20 or im.width * im.height > 4000000: return ''
+        if im.mode in ('RGBA', 'LA', 'P'):
+            im = im.convert('RGBA'); bg = Image.new('RGBA', im.size, (255, 255, 255, 255)); bg.alpha_composite(im); im = bg
+        im = im.convert('L')
+        if im.width > 480: im = im.resize((480, max(1, round(im.height * 480 / im.width))))
+        if im.getextrema()[0] > 235: return ''          # blank pad: nothing was drawn
+        out = io.BytesIO(); im.save(out, 'PNG', optimize=True)
+        return base64.b64encode(out.getvalue()).decode('ascii')
+    except Exception:
+        return ''
+
 def num(v, default=0.0):
     try: return float(str(v).replace(',', '').strip() or default)
     except Exception: return default
@@ -445,13 +474,13 @@ DEFAULT_PERMS = ['dn_create', 'dn_edit', 'dn_deliver', 'dn_view_all']
 USER_ENDPOINTS = {
     'index', 'login', 'logout', 'change_password', 'static',
     'notes', 'new_note', 'edit_note', 'view_note', 'delete_note', 'duplicate_note',
-    'download_pdf', 'preview_pdf', 'set_status', 'reorder_notes',
+    'download_pdf', 'preview_pdf', 'set_status', 'set_fee_collected', 'reorder_notes',
     'drivers', 'save_driver', 'delete_driver',
     'api_clients', 'api_client_save', 'clients', 'new_client', 'edit_client', 'api_stamps', 'api_next_number', 'api_drivers',
 }
 ENDPOINT_PERM = {
     'new_note': 'dn_create', 'duplicate_note': 'dn_create',
-    'edit_note': 'dn_edit', 'set_status': 'dn_deliver',
+    'edit_note': 'dn_edit', 'set_status': 'dn_deliver', 'set_fee_collected': 'dn_deliver',
     'delete_note': 'dn_delete', 'reorder_notes': 'dn_edit',
 }
 
@@ -832,7 +861,7 @@ def _autosave_client(conn, name, tel='', addr='', ship='', map_link='', client_i
         row = conn.execute("SELECT * FROM clients WHERE id=? AND is_active=1", (client_id,)).fetchone()
         if row and (row['name'] or '').strip().lower() != name.lower(): row = None
     if not row: row = conn.execute("SELECT * FROM clients WHERE LOWER(name)=LOWER(?) AND is_active=1 ORDER BY id LIMIT 1", (name,)).fetchone()
-    vals = {'telephone': (tel or '').strip(), 'address': (addr or '').strip(),
+    vals = {'telephone': clean_phone(tel), 'address': (addr or '').strip(),
             'shipping_address': (ship or '').strip(), 'map_link': (map_link or '').strip()}
     if row:
         sets, params = [], []
@@ -852,7 +881,7 @@ def _autosave_driver(conn, name, contact='', vehicle=''):
     """Typed-in driver (not picked from the list) is saved automatically; returns the driver id."""
     name = (name or '').strip()
     if not name: return None
-    contact, vehicle = (contact or '').strip(), (vehicle or '').strip()
+    contact, vehicle = clean_phone(contact), (vehicle or '').strip()
     ex = conn.execute("SELECT id,contact FROM drivers WHERE LOWER(name)=LOWER(?) AND COALESCE(vehicle_number,'')=? AND is_active=1", (name, vehicle)).fetchone()
     if ex:
         if contact and not (ex['contact'] or '').strip(): conn.execute("UPDATE drivers SET contact=? WHERE id=?", (contact, ex['id']))
@@ -916,12 +945,12 @@ def _save_note_impl(nid):
         base = [co_id, f.get('dn_date') or now_dubai().strftime('%Y-%m-%d'),
                 f.get('invoice_no', '').strip(), f.get('order_no', '').strip(),
                 f.get('project_name', '').strip(), f.get('location', '').strip(),
-                client_id, f.get('client_name', '').strip(), f.get('client_telephone', '').strip(),
+                client_id, f.get('client_name', '').strip(), clean_phone(f.get('client_telephone')),
                 f.get('invoice_address', '').strip(), f.get('shipping_address', '').strip(),
                 show_prices, gset('currency', 'AED'), vat_rate, subtotal, vat_amt, net,
                 f.get('vehicle_number', '').strip() or (drv_row['vehicle_number'] if drv_row else '') or '',
                 f.get('driver_name', '').strip() or (drv_row['name'] if drv_row else ''),
-                f.get('driver_contact', '').strip() or (drv_row['contact'] if drv_row else '') or '',
+                clean_phone(f.get('driver_contact')) or (drv_row['contact'] if drv_row else '') or '',
                 notes_txt,
                 sig['id'] if sig else None, sig['name'] if sig else '', sig['position'] if sig else '',
                 (sig['phone'] if sig and 'phone' in sig.keys() else '') or '', sig['image_path'] if sig else '',
@@ -929,7 +958,7 @@ def _save_note_impl(nid):
                 1 if f.get('include_signature') else 0, 1 if f.get('include_stamp') else 0,
                 map_link, drv_row['id'] if drv_row else None,
                 task_type, f.get('pickup_name', '').strip() if task_type == 'pickup' else '',
-                f.get('pickup_phone', '').strip() if task_type == 'pickup' else '',
+                clean_phone(f.get('pickup_phone')) if task_type == 'pickup' else '',
                 f.get('pickup_address', '').strip() if task_type == 'pickup' else '',
                 pu_map if task_type == 'pickup' else '']
         cols = ("company_id,dn_date,invoice_no,order_no,project_name,location,client_id,client_name,client_telephone,"
@@ -965,6 +994,13 @@ def _save_note_impl(nid):
         for i, it in enumerate(items, 1):
             conn.execute("INSERT INTO dn_items(dn_id,sr_no,description,quantity,unit,amount,total_amount) VALUES(?,?,?,?,?,?,?)",
                          (nid, i) + it)
+        # internal delivery fee to collect (office only; never printed on the delivery note)
+        fee_raw = (f.get('delivery_fee') or '').strip()
+        fee = round(max(num(fee_raw, 0), 0), 2) if fee_raw else None
+        if not fee:
+            conn.execute("UPDATE delivery_notes SET delivery_fee=NULL,fee_collected=0,fee_collected_at=NULL,fee_collected_by=NULL WHERE id=?", (nid,))
+        else:
+            conn.execute("UPDATE delivery_notes SET delivery_fee=? WHERE id=?", (fee, nid))
         conn.commit()
     finally:
         conn.close()
@@ -1010,13 +1046,32 @@ def set_status(nid):
                           session.get('full_name') or session.get('username'), f"{delivered_on} {dtime}", nid))
         else:
             conn.execute("""UPDATE delivery_notes SET delivery_status=?,delivered_on=NULL,received_by=NULL,status_remarks=?,
-                            delivered_by=NULL,delivered_at=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?""",
+                            delivered_by=NULL,delivered_at=NULL,receiver_signature=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?""",
                          (st, request.form.get('status_remarks', '').strip(), nid))
         conn.commit()
         audit('DN_STATUS', f"{row['dn_number']} → {st}")
         flash(f"{row['dn_number']} marked as {st}.", 'success')
     conn.close()
     if request.form.get('next') == 'list': return redirect(url_for('notes'))
+    return redirect(url_for('view_note', nid=nid))
+
+@app.route('/notes/<int:nid>/fee-collected', methods=['POST'])
+@login_req
+def set_fee_collected(nid):
+    if session.get('role') == 'driver' or not note_allowed(nid): return _no_access()
+    collected = 1 if request.form.get('collected') == '1' else 0
+    conn = get_db()
+    row = conn.execute("SELECT dn_number,delivery_fee FROM delivery_notes WHERE id=? AND status='active'", (nid,)).fetchone()
+    if row and row['delivery_fee']:
+        if collected:
+            conn.execute("UPDATE delivery_notes SET fee_collected=1,fee_collected_at=?,fee_collected_by=? WHERE id=?",
+                         (now_dubai().strftime('%Y-%m-%d %H:%M'), session.get('full_name') or session.get('username'), nid))
+        else:
+            conn.execute("UPDATE delivery_notes SET fee_collected=0,fee_collected_at=NULL,fee_collected_by=NULL WHERE id=?", (nid,))
+        conn.commit()
+        audit('DN_FEE', f"{row['dn_number']} → {'collected' if collected else 'not collected'}")
+        flash(f"Delivery fee for {row['dn_number']} marked as {'collected' if collected else 'not collected'}.", 'success')
+    conn.close()
     return redirect(url_for('view_note', nid=nid))
 
 @app.route('/notes/<int:nid>/delete', methods=['POST'])
@@ -1522,12 +1577,13 @@ def driver_deliver(nid):
     if not received_by:
         conn.close(); flash('Enter the name of the person who received the goods.', 'danger'); return _back_to_driver_home()
     now = now_dubai()
+    sig = clean_signature(request.form.get('receiver_signature'))
     conn.execute("""UPDATE delivery_notes SET delivery_status='delivered',delivered_on=?,received_by=?,status_remarks=?,
-                    delivered_by=?,delivered_at=?,updated_at=CURRENT_TIMESTAMP WHERE id=?""",
+                    delivered_by=?,delivered_at=?,receiver_signature=?,updated_at=CURRENT_TIMESTAMP WHERE id=?""",
                  (now.strftime('%Y-%m-%d'), received_by, request.form.get('remarks', '').strip(),
-                  f"Driver: {session.get('full_name') or session.get('username')}", now.strftime('%Y-%m-%d %H:%M'), nid))
+                  f"Driver: {session.get('full_name') or session.get('username')}", now.strftime('%Y-%m-%d %H:%M'), sig or None, nid))
     conn.commit(); conn.close()
-    audit('DN_DELIVERED', f"{n['dn_number']} by driver, received by {received_by}")
+    audit('DN_DELIVERED', f"{n['dn_number']} by driver, received by {received_by}{', signed on phone' if sig else ''}")
     flash(f"{n['dn_number']} marked as delivered.", 'success')
     return _back_to_driver_home()
 
@@ -1653,7 +1709,7 @@ def new_client():
     if request.method == 'POST':
         f = request.form; conn = get_db()
         conn.execute("INSERT INTO clients(name,company_name,trn,address,country,telephone,email,notes,shipping_address,map_link) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                     (f.get('name'), f.get('company_name'), f.get('trn'), f.get('address'), f.get('country'), f.get('telephone'), f.get('email'), f.get('notes'),
+                     (f.get('name'), f.get('company_name'), f.get('trn'), f.get('address'), f.get('country'), clean_phone(f.get('telephone')), f.get('email'), f.get('notes'),
                       f.get('shipping_address', '').strip(), clean_map_link(f.get('map_link'))[0]))
         conn.commit(); conn.close(); audit('CLIENT_ADDED', f.get('name')); flash('Client added.', 'success')
         return redirect(url_for('clients'))
@@ -1666,7 +1722,7 @@ def edit_client(cid):
     if request.method == 'POST':
         f = request.form
         conn.execute("UPDATE clients SET name=?,company_name=?,trn=?,address=?,country=?,telephone=?,email=?,notes=?,shipping_address=?,map_link=? WHERE id=?",
-                     (f.get('name'), f.get('company_name'), f.get('trn'), f.get('address'), f.get('country'), f.get('telephone'), f.get('email'), f.get('notes'),
+                     (f.get('name'), f.get('company_name'), f.get('trn'), f.get('address'), f.get('country'), clean_phone(f.get('telephone')), f.get('email'), f.get('notes'),
                       f.get('shipping_address', '').strip(), clean_map_link(f.get('map_link'))[0], cid))
         conn.commit(); conn.close(); audit('CLIENT_EDITED', f.get('name')); flash('Updated.', 'success')
         return redirect(url_for('clients'))
@@ -1700,10 +1756,10 @@ def save_driver():
     conn = get_db()
     if did:
         conn.execute("UPDATE drivers SET name=?,contact=?,vehicle_number=? WHERE id=?",
-                     (name, f.get('contact', '').strip(), f.get('vehicle_number', '').strip(), did))
+                     (name, clean_phone(f.get('contact')), f.get('vehicle_number', '').strip(), did))
     else:
         conn.execute("INSERT INTO drivers(name,contact,vehicle_number) VALUES(?,?,?)",
-                     (name, f.get('contact', '').strip(), f.get('vehicle_number', '').strip()))
+                     (name, clean_phone(f.get('contact')), f.get('vehicle_number', '').strip()))
     conn.commit(); conn.close(); audit('DRIVER_SAVED', name); flash('Driver saved.', 'success')
     return redirect(url_for('drivers'))
 

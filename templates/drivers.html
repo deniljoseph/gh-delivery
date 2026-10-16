@@ -54,7 +54,7 @@
 {% block xs %}<script>
 function editDrv(id,name,contact,veh){
   document.getElementById('d_id').value=id; document.getElementById('d_name').value=name;
-  document.getElementById('d_contact').value=contact; document.getElementById('d_veh').value=veh;
+  document.getElementById('d_contact').value=contact||'+971 '; document.getElementById('d_veh').value=veh;
   new bootstrap.Modal(document.getElementById('drvMod')).show();
 }
 function loginDrv(id,name,user){

@@ -10,6 +10,7 @@
   <div><div style="font-size:11px;opacity:.7;">Driver portal</div><div style="font-weight:700;font-size:16px;"><i class="bi bi-person-badge me-1"></i>{{ drv.name if drv else session.get('full_name') }}</div>
     {% if drv and drv.vehicle_number %}<div style="font-size:11.5px;opacity:.8;">Vehicle {{ drv.vehicle_number }}</div>{% endif %}</div>
   <div class="d-flex gap-3 align-items-center" style="font-size:20px;">
+    <a href="#" onclick="ghTheme.toggleDark();return false;" title="Dark / light mode"><i id="di" class="bi bi-moon-stars"></i></a>
     <div class="dropdown"><a href="#" data-bs-toggle="dropdown" data-bs-auto-close="outside" title="Theme"><i class="bi bi-palette"></i></a>
       <div class="dropdown-menu dropdown-menu-end p-0"><div class="theme-grid"></div></div></div>
     <a href="{{ url_tab(tab) }}" title="Refresh"><i class="bi bi-arrow-clockwise"></i></a>
@@ -105,6 +106,9 @@
         <div style="white-space:pre-line;font-size:14px;">{{ n.shipping_address or n.invoice_address or '—' }}</div>
         {% if n.location %}<div style="font-size:12.5px;color:var(--muted);">{{ n.location }}</div>{% endif %}
       </div>
+      {% if n.delivery_fee %}<div class="mb-2 dp-fee">
+        <div><div class="dp-lbl" style="margin:0;">Delivery fee to collect</div><div style="font-size:20px;font-weight:700;">{{ n.currency or s.get('currency','AED') }} {{ '%.2f' % n.delivery_fee }}</div></div>
+        {% if n.fee_collected %}<span class="badge-on">Collected</span>{% else %}<span class="dp-due">Collect on delivery</span>{% endif %}</div>{% endif %}
       {% if n.order_no or n.invoice_no %}<div class="mb-2" style="font-size:12.5px;color:var(--muted);">{% if n.invoice_no %}Invoice: {{ n.invoice_no }}{% endif %}{% if n.invoice_no and n.order_no %} · {% endif %}{% if n.order_no %}Order: {{ n.order_no }}{% endif %}</div>{% endif %}
 
       <details class="dp-more mb-3"><summary><i class="bi bi-box-seam me-1"></i>{{ items.get(n.id, [])|length }} item{{ '' if items.get(n.id, [])|length==1 else 's' }} {{ 'to collect & deliver' if pu else 'to deliver' }}</summary>
@@ -126,6 +130,13 @@
           {{ keep() }}
           <label class="form-label">Received by *</label>
           <input type="text" name="received_by" class="form-control mb-2" placeholder="Name of the person who received" required style="font-size:16px;padding:12px;">
+          <label class="form-label">Receiver signature <small class="text-muted fw-normal">(optional)</small></label>
+          <div class="mb-3">
+            <img class="sig-prev" alt="Receiver signature">
+            <button type="button" class="dp-btn line" data-sig-open><i class="bi bi-pencil-square"></i><span>Receiver signs on phone</span></button>
+            <button type="button" class="btn btn-sm btn-link text-danger sig-del" style="display:none;">Remove signature</button>
+            <input type="hidden" name="receiver_signature" class="sig-val">
+          </div>
           <label class="form-label">Remarks <small class="text-muted fw-normal">(optional – damages, missing items…)</small></label>
           <input type="text" name="remarks" class="form-control mb-3" style="font-size:16px;padding:12px;">
           <button class="dp-btn solid" type="submit"><i class="bi bi-check2-circle"></i>Confirm delivered</button>
@@ -136,6 +147,8 @@
       <div style="font-size:13px;border-top:1px solid var(--bd);padding-top:8px;">
         <span class="badge-on">Delivered</span> <span class="ms-1"><strong>{{ (n.delivered_at or n.delivered_on)|fmt_dt }}</strong></span>
         {% if n.received_by %}<div class="mt-1">Received by <strong>{{ n.received_by }}</strong></div>{% endif %}
+        {% if n.receiver_signature %}<img src="data:image/png;base64,{{ n.receiver_signature }}" alt="Receiver signature" style="height:56px;max-width:100%;object-fit:contain;background:#fff;border:1px solid var(--bd);border-radius:8px;margin-top:6px;">{% endif %}
+        {% if n.delivery_fee %}<div class="mt-1">Delivery fee <strong>{{ n.currency or s.get('currency','AED') }} {{ '%.2f' % n.delivery_fee }}</strong> · {{ 'Collected' if n.fee_collected else 'To collect' }}</div>{% endif %}
         {% if n.status_remarks %}<div class="text-muted">{{ n.status_remarks }}</div>{% endif %}
       </div>
       {% endif %}

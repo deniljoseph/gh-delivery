@@ -10,7 +10,7 @@
       <div class="col-12"><label class="form-label">Address <small class="text-muted fw-normal">(invoice address)</small></label><textarea name="address" rows="2" class="form-control">{{ cl.address if cl else '' }}</textarea></div>
       <div class="col-12"><label class="form-label">Delivery / shipping address <small class="text-muted fw-normal">(auto-filled on new notes)</small></label><textarea name="shipping_address" rows="2" class="form-control">{{ cl.shipping_address if cl and cl.shipping_address else '' }}</textarea></div>
       <div class="col-12"><label class="form-label">Location (Google Map link) <small class="text-muted fw-normal">(auto-filled on new notes)</small></label><input type="text" name="map_link" class="form-control" placeholder="https://maps.app.goo.gl/…  or  25.2048,55.2708" value="{{ cl.map_link if cl and cl.map_link else '' }}"></div>
-      <div class="col-md-6"><label class="form-label">Telephone</label><input type="text" name="telephone" class="form-control" value="{{ cl.telephone if cl else '' }}"></div>
+      <div class="col-md-6"><label class="form-label">Telephone</label><input type="text" name="telephone" class="form-control" value="{{ cl.telephone if cl and cl.telephone else '+971 ' }}" inputmode="tel"></div>
       <div class="col-md-6"><label class="form-label">Email</label><input type="email" name="email" class="form-control" value="{{ cl.email if cl else '' }}"></div>
       <div class="col-12"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="2">{{ cl.notes if cl else '' }}</textarea></div>
     </div>

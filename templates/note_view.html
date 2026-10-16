@@ -19,6 +19,17 @@
 </div>
 <div class="row g-3">
   <div class="col-lg-5">
+    {% if n.delivery_fee %}
+    <div class="pc mb-3"><div class="ph"><i class="bi bi-cash-coin me-1"></i>Delivery Fee <small class="ms-2 opacity-75">internal – not on the delivery note</small></div>
+    <div style="padding:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <div><div style="font-size:24px;font-weight:700;">{{ n.currency or s.get('currency','AED') }} {{ '%.2f' % n.delivery_fee }}</div>
+        {% if n.fee_collected %}<span class="badge-on">Collected</span> <span style="font-size:12px;color:var(--muted);">{{ n.fee_collected_at|fmt_dt }}{% if n.fee_collected_by %} · by {{ n.fee_collected_by }}{% endif %}</span>
+        {% else %}<span style="background:#fff3cd;color:#8a6d00;font-size:11px;font-weight:600;padding:2px 10px;border-radius:12px;">To collect</span>{% endif %}</div>
+      {% if can('dn_deliver') %}<form method="POST" action="{{ url_for('set_fee_collected',nid=n.id) }}">
+        <input type="hidden" name="collected" value="{{ 0 if n.fee_collected else 1 }}">
+        <button class="btn btn-sm {{ 'btn-outline-secondary' if n.fee_collected else 'bg' }}"><i class="bi bi-{{ 'arrow-counterclockwise' if n.fee_collected else 'check2-circle' }} me-1"></i>{{ 'Mark not collected' if n.fee_collected else 'Mark as collected' }}</button></form>{% endif %}
+    </div></div>
+    {% endif %}
     {% if can('dn_deliver') %}
     <div class="pc mb-3"><div class="ph"><i class="bi bi-clipboard-check me-1"></i>Delivery Status</div>
     <form method="POST" action="{{ url_for('set_status',nid=n.id) }}" style="padding:16px;"><div class="row g-2">
@@ -50,7 +61,7 @@
           <div style="font-size:11px;color:var(--muted);">{{ 'Visible in this driver\'s portal' if n.driver_id else 'Not linked to a saved driver (no portal access)' }}</div></td></tr>
         <tr><td class="text-muted">{{ 'Drop-off map' if is_pickup(n) else 'Location' }}</td><td>{% if n.map_link %}<a href="{{ n.map_link }}" target="_blank" rel="noopener"><i class="bi bi-geo-alt me-1"></i>Open in Google Maps</a>{% else %}<span class="text-muted">No map link added</span>{% endif %}</td></tr>
         {% if n.delivery_status=='delivered' %}<tr><td class="text-muted">Delivered</td><td><strong>{{ (n.delivered_at or n.delivered_on)|fmt_dt }}</strong></td></tr>
-        <tr><td class="text-muted">Received by</td><td>{{ n.received_by or '—' }}</td></tr>
+        <tr><td class="text-muted">Received by</td><td>{{ n.received_by or '—' }}{% if n.receiver_signature %}<div class="mt-1"><img src="data:image/png;base64,{{ n.receiver_signature }}" alt="Receiver signature" style="height:60px;max-width:100%;object-fit:contain;background:#fff;border:1px solid var(--bd);border-radius:6px;"><div style="font-size:11px;color:var(--muted);">Signed on the driver's phone</div></div>{% endif %}</td></tr>
         <tr><td class="text-muted">Marked by</td><td>{{ n.delivered_by or '—' }}</td></tr>{% endif %}
         {% if n.status_remarks %}<tr><td class="text-muted">Remarks</td><td>{{ n.status_remarks }}</td></tr>{% endif %}
       </tbody></table></div>

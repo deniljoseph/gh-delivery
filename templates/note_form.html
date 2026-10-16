@@ -30,7 +30,7 @@
 <div class="col-12 t-pu"><div class="pc"><div class="ph"><i class="bi bi-box-arrow-in-down me-1"></i>1 · Collect from <small class="ms-2 opacity-75">where the driver picks the goods up</small></div>
 <div style="padding:18px;"><div class="row g-3">
   <div class="col-md-6"><label class="form-label">Name / company <span id="puSaved" class="ms-1" style="font-size:11px;color:var(--acc-txt);"></span></label><input type="text" name="pickup_name" id="puName" list="clientNames" class="form-control" value="{{ n.pickup_name if n and n.pickup_name else '' }}" placeholder="e.g. supplier, warehouse, customer"></div>
-  <div class="col-md-6"><label class="form-label">Contact number</label><input type="text" name="pickup_phone" id="puPhone" class="form-control" value="{{ n.pickup_phone if n and n.pickup_phone else '' }}"></div>
+  <div class="col-md-6"><label class="form-label">Contact number</label><input type="text" name="pickup_phone" id="puPhone" class="form-control" value="{{ n.pickup_phone if n and n.pickup_phone else '+971 ' }}" inputmode="tel"></div>
   <div class="col-12"><label class="form-label">Pickup address</label><textarea name="pickup_address" id="puAddr" rows="3" class="form-control">{{ n.pickup_address if n and n.pickup_address else '' }}</textarea></div>
   <div class="col-md-9"><label class="form-label">Pickup location (Google Map link)</label><input type="text" name="pickup_map_link" id="puMap" class="form-control" placeholder="https://maps.app.goo.gl/…   or   25.2048,55.2708" value="{{ n.pickup_map_link if n and n.pickup_map_link else '' }}"></div>
   <div class="col-md-3 d-flex align-items-end"><button type="button" class="btn bg w-100" id="testPuMap"><i class="bi bi-box-arrow-up-right me-1"></i>Test link</button></div>
@@ -43,7 +43,7 @@
       {% for c in clients %}<option value="{{ c.id }}" data-name="{{ c.name }}" data-tel="{{ c.telephone or '' }}" data-addr="{{ c.address or '' }}" data-ship="{{ c.shipping_address or '' }}" data-map="{{ c.map_link or '' }}" {{ 'selected' if n and n.client_id==c.id }}>{{ c.name }}{% if c.company_name %} – {{ c.company_name }}{% endif %}</option>{% endfor %}
     </select></div>
   <div class="col-md-4"><label class="form-label">Mr/Ms</label><input type="text" name="client_name" id="clientName" list="clientNames" class="form-control" value="{{ n.client_name if n else '' }}"></div>
-  <div class="col-md-4"><label class="form-label">Tel No</label><input type="text" name="client_telephone" id="clientTel" class="form-control" value="{{ n.client_telephone if n else '' }}"></div>
+  <div class="col-md-4"><label class="form-label">Tel No</label><input type="text" name="client_telephone" id="clientTel" class="form-control" value="{{ n.client_telephone if n and n.client_telephone else '+971 ' }}" inputmode="tel"></div>
   <div class="col-md-6 t-dl"><label class="form-label">Invoice address</label><textarea name="invoice_address" id="invAddr" rows="3" class="form-control">{{ n.invoice_address if n else '' }}</textarea></div>
   <div class="col-md-6 col-pu-wide"><label class="form-label d-flex justify-content-between"><span class="t-dl">Shipping address</span><span class="t-pu">Drop-off address</span> <a href="#" id="sameAddr" class="t-dl" style="font-size:11.5px;color:var(--acc-txt);text-decoration:underline;">same as invoice address</a></label><textarea name="shipping_address" id="shipAddr" rows="3" class="form-control">{{ n.shipping_address if n else '' }}</textarea></div>
 </div></div></div></div>
@@ -95,6 +95,9 @@
   <div class="col-md-4"><label class="form-label">Vehicle number</label><input type="text" name="vehicle_number" id="vehNo" class="form-control" value="{{ n.vehicle_number if n else '' }}"></div>
   <div class="col-md-4"><label class="form-label">Driver name</label><input type="text" name="driver_name" id="drvName" class="form-control" value="{{ n.driver_name if n else '' }}"></div>
   <div class="col-md-4"><label class="form-label">Driver contact</label><input type="text" name="driver_contact" id="drvContact" class="form-control" value="{{ n.driver_contact if n else '' }}"></div>
+  <div class="col-md-6"><label class="form-label">Delivery fee to collect <small class="text-muted fw-normal">({{ (n.currency if n and n.currency else s.get('currency','AED')) }})</small></label>
+    <input type="number" step="0.01" min="0" name="delivery_fee" class="form-control" placeholder="Leave empty if none" value="{{ ('%.2f' % n.delivery_fee) if n and n.delivery_fee else '' }}">
+    <small class="text-muted"><i class="bi bi-eye-slash me-1"></i>Internal: shown to office staff and the driver, <strong>not printed</strong> on the delivery note.</small></div>
   <div class="col-12"><small class="text-muted"><i class="bi bi-magic me-1"></i>A driver you type in here is saved automatically for next time (and can get a portal login on the Drivers page).</small></div>
 </div></div></div></div>
 
@@ -202,7 +205,7 @@ function setType(t){
   // client autofill
   var cs=document.getElementById('clientSel');
   function fillClient(o,force){
-    function set(id,v){var el=document.getElementById(id); if(el&&(force||!el.value.trim())&&v) el.value=v;}
+    function set(id,v){var el=document.getElementById(id); if(el&&(force||!el.value.trim()||/^\+?\s*971[\s-]*0?$/.test(el.value.trim()))&&v) el.value=v;}
     set('clientName',o.dataset.name); set('clientTel',o.dataset.tel); set('invAddr',o.dataset.addr);
     set('shipAddr',o.dataset.ship||o.dataset.addr); set('mapLink',o.dataset.map);
   }
@@ -211,7 +214,7 @@ function setType(t){
     return [].slice.call(cs.options).filter(function(o){return o.value&&(o.dataset.name||'').toLowerCase()===name;})[0]||null;}
   document.getElementById('clientName').addEventListener('change',function(){var o=findClient(this.value); if(o){cs.value=o.value; fillClient(o,false);}});
   document.getElementById('puName').addEventListener('change',function(){var o=findClient(this.value); if(!o) return;
-    function set(id,v){var el=document.getElementById(id); if(!el.value.trim()&&v) el.value=v;}
+    function set(id,v){var el=document.getElementById(id); if((!el.value.trim()||/^\+?\s*971[\s-]*0?$/.test(el.value.trim()))&&v) el.value=v;}
     set('puPhone',o.dataset.tel); set('puAddr',o.dataset.addr||o.dataset.ship); set('puMap',o.dataset.map);});
   // ---- live auto-save: client details are stored (and updated) as soon as a field is changed ----
   function $(id){return document.getElementById(id);}

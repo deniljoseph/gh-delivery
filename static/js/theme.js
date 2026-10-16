@@ -19,7 +19,8 @@
   function apply(){
     var a=get('ghaccent','classic'); if(!valid(a)) a='classic';
     root.setAttribute('data-theme',a);
-    root.setAttribute('data-bs-theme',get('ghtheme','light')==='dark'?'dark':'light');
+    var sysDark=!!(window.GH_SYSTEM_DARK&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);
+    root.setAttribute('data-bs-theme',get('ghtheme',sysDark?'dark':'light')==='dark'?'dark':'light');
     var meta=document.querySelector('meta[name=theme-color]');
     if(meta){var side=getComputedStyle(root).getPropertyValue('--side').trim(); if(side) meta.setAttribute('content',side);}
     var di=document.getElementById('di'); if(di) di.className=root.getAttribute('data-bs-theme')==='dark'?'bi bi-sun':'bi bi-moon-stars';

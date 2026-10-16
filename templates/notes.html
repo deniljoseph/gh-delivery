@@ -83,7 +83,7 @@
         {% if can_drag %}<span class="grip bi bi-grip-vertical" title="Drag to reorder / reassign"></span>{% endif %}
         <span class="pri">{{ loop.index }}</span>
         <div class="body">
-          <div class="t1"><a href="{{ url_for('view_note',nid=n.id) }}" class="text-decoration-none">{{ n.dn_number }}</a>{% if is_pickup(n) %}<span class="badge-pu">PICKUP</span>{% endif %}<span class="co-pill">{{ n.co_code }}</span>{% if is_pickup(n) and n.picked_up_at %}<span class="badge-pending">Collected {{ n.picked_up_at[11:16] }}</span>{% endif %}</div>
+          <div class="t1"><a href="{{ url_for('view_note',nid=n.id) }}" class="text-decoration-none">{{ n.dn_number }}</a>{% if is_pickup(n) %}<span class="badge-pu">PICKUP</span>{% endif %}<span class="co-pill">{{ n.co_code }}</span>{% if n.order_no %}<span class="co-pill" style="background:transparent;border:1px solid var(--bd,#ccc);" title="Order number">Order: {{ n.order_no }}</span>{% endif %}{% if is_pickup(n) and n.picked_up_at %}<span class="badge-pending">Collected {{ n.picked_up_at[11:16] }}</span>{% endif %}</div>
           <div class="t2" style="color:var(--txt);font-weight:600;">{{ n.project_name or n.client_name or '—' }}{% if n.project_name and n.client_name %}<span style="font-weight:400;color:var(--muted);"> · {{ n.client_name }}</span>{% endif %}</div>
           <div class="t2">{% if is_pickup(n) %}<i class="bi bi-box-arrow-in-down"></i> {{ n.pickup_name or '' }} {{ (n.pickup_address or '').replace('\n',', ')[:60] }} &nbsp;<i class="bi bi-arrow-right"></i> {{ ((n.shipping_address or n.invoice_address) or '').replace('\n',', ')[:60] }}{% else %}<i class="bi bi-geo-alt"></i> {{ ((n.shipping_address or n.invoice_address) or '—').replace('\n',', ')[:90] }}{% endif %} · {{ n.item_count }} item{{ '' if n.item_count==1 else 's' }}</div>
         </div>
@@ -95,7 +95,7 @@
     {% if cell.done %}<div style="padding:0 10px 6px;">
       {% for n in cell.done %}
       <div class="nrow done {{ 'pu' if is_pickup(n) }}"><span class="pri"><i class="bi bi-check2"></i></span>
-        <div class="body"><div class="t1"><a href="{{ url_for('view_note',nid=n.id) }}" class="text-decoration-none">{{ n.dn_number }}</a>{% if is_pickup(n) %}<span class="badge-pu">PICKUP</span>{% endif %}<span class="co-pill">{{ n.co_code }}</span></div>
+        <div class="body"><div class="t1"><a href="{{ url_for('view_note',nid=n.id) }}" class="text-decoration-none">{{ n.dn_number }}</a>{% if is_pickup(n) %}<span class="badge-pu">PICKUP</span>{% endif %}<span class="co-pill">{{ n.co_code }}</span>{% if n.order_no %}<span class="co-pill" style="background:transparent;border:1px solid var(--bd,#ccc);" title="Order number">Order: {{ n.order_no }}</span>{% endif %}</div>
           <div class="t2" style="color:var(--txt);">{{ n.project_name or n.client_name or '—' }}</div></div>
         <div style="min-width:170px;">{{ delivered_info(n) }}</div>
         <div class="acts">{{ actions(n) }}</div></div>
